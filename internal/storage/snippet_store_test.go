@@ -16,7 +16,7 @@ func setupTestStore(t *testing.T) *Store {
 	cat, _ := domain.NewCategory("algorithms")
 	cat.SetID(1)
 	store.categories[1] = cat
-	store.metadata.next_category_id = 2
+	store.metadata.NextCategoryID = 2
 
 	// Create sample tags
 	tag1, _ := domain.NewTag("sorting")
@@ -27,7 +27,7 @@ func setupTestStore(t *testing.T) *Store {
 	tag2.SetID(2)
 	store.tags[2] = tag2
 
-	store.metadata.next_tag_id = 3
+	store.metadata.NextTagID = 3
 
 	return store
 }
@@ -319,8 +319,8 @@ func TestSnippetStore_Create_IncrementsMetadata(t *testing.T) {
 	if snippet2.ID() != 2 {
 		t.Errorf("Second snippet should have ID 2, got %d", snippet2.ID())
 	}
-	if store.metadata.next_snippet_id != 3 {
-		t.Errorf("Expected next ID 3, got %d", store.metadata.next_snippet_id)
+	if store.metadata.NextSnippetID != 3 {
+		t.Errorf("Expected next ID 3, got %d", store.metadata.NextSnippetID)
 	}
 }
 

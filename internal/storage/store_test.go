@@ -36,16 +36,16 @@ func TestNewStore(t *testing.T) {
 func TestStoreMetadataInitialization(t *testing.T) {
 	store := newStore("test.json")
 
-	if store.metadata.next_snippet_id != 1 {
-		t.Errorf("Expected next_snippet_id=1, got %d", store.metadata.next_snippet_id)
+	if store.metadata.NextSnippetID != 1 {
+		t.Errorf("Expected next_snippet_id=1, got %d", store.metadata.NextSnippetID)
 	}
 
-	if store.metadata.next_category_id != 1 {
-		t.Errorf("Expected next_category_id=1, got %d", store.metadata.next_category_id)
+	if store.metadata.NextCategoryID != 1 {
+		t.Errorf("Expected next_category_id=1, got %d", store.metadata.NextCategoryID)
 	}
 
-	if store.metadata.next_tag_id != 1 {
-		t.Errorf("Expected next_tag_id=1, got %d", store.metadata.next_tag_id)
+	if store.metadata.NextTagID != 1 {
+		t.Errorf("Expected next_tag_id=1, got %d", store.metadata.NextTagID)
 	}
 }
 
@@ -112,8 +112,8 @@ func TestStore_NextSnippetID_UpdatesMetadata(t *testing.T) {
 	store.nextSnippetID()
 	store.nextSnippetID()
 
-	if store.metadata.next_snippet_id != 3 {
-		t.Errorf("metadata.next_snippet_id = %d, expected 3", store.metadata.next_snippet_id)
+	if store.metadata.NextSnippetID != 3 {
+		t.Errorf("metadata.next_snippet_id = %d, expected 3", store.metadata.NextSnippetID)
 	}
 }
 
@@ -145,8 +145,8 @@ func TestStore_NextCategoryID_UpdatesMetadata(t *testing.T) {
 	store.nextCategoryID()
 	store.nextCategoryID()
 
-	if store.metadata.next_category_id != 3 {
-		t.Errorf("metadata.next_category_id = %d, expected 3", store.metadata.next_category_id)
+	if store.metadata.NextCategoryID != 3 {
+		t.Errorf("metadata.next_category_id = %d, expected 3", store.metadata.NextCategoryID)
 	}
 }
 
@@ -178,8 +178,8 @@ func TestStore_NextTagID_UpdatesMetadata(t *testing.T) {
 	store.nextTagID()
 	store.nextTagID()
 
-	if store.metadata.next_tag_id != 3 {
-		t.Errorf("metadata.next_tag_id = %d, expected 3", store.metadata.next_tag_id)
+	if store.metadata.NextTagID != 3 {
+		t.Errorf("metadata.next_tag_id = %d, expected 3", store.metadata.NextTagID)
 	}
 }
 
@@ -196,13 +196,13 @@ func TestStore_IDGeneration_Independent(t *testing.T) {
 	}
 
 	// Each counter should be at 2 now
-	if store.metadata.next_snippet_id != 2 {
-		t.Errorf("next_snippet_id = %d, expected 2", store.metadata.next_snippet_id)
+	if store.metadata.NextSnippetID != 2 {
+		t.Errorf("next_snippet_id = %d, expected 2", store.metadata.NextSnippetID)
 	}
-	if store.metadata.next_category_id != 2 {
-		t.Errorf("next_category_id = %d, expected 2", store.metadata.next_category_id)
+	if store.metadata.NextCategoryID != 2 {
+		t.Errorf("next_category_id = %d, expected 2", store.metadata.NextCategoryID)
 	}
-	if store.metadata.next_tag_id != 2 {
-		t.Errorf("next_tag_id = %d, expected 2", store.metadata.next_tag_id)
+	if store.metadata.NextTagID != 2 {
+		t.Errorf("next_tag_id = %d, expected 2", store.metadata.NextTagID)
 	}
 }

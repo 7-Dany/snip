@@ -388,7 +388,7 @@ func Test_categoryStore_Delete_DoesNotReuseID(t *testing.T) {
 	}
 
 	// Verify metadata incremented correctly
-	if cs.store.metadata.next_category_id != 4 {
-		t.Errorf("Metadata next_category_id = %d, want 4", cs.store.metadata.next_category_id)
+	if cs.store.metadata.NextCategoryID != 4 {
+		t.Errorf("Metadata next_category_id = %d, want 4", cs.store.metadata.NextCategoryID)
 	}
 }

@@ -9,13 +9,13 @@ import (
 // IDs are never reused, even after deletion.
 //
 // Design: Auto-increment strategy
-// - next_snippet_id starts at 1 (0 means unassigned)
+// - NextSnippetID starts at 1 (0 means unassigned)
 // - Incremented after each Create operation
 // - Never decremented (even on Delete)
 type Metadata struct {
-	next_snippet_id  int // Next ID to assign to new snippet
-	next_category_id int // Next ID to assign to new category
-	next_tag_id      int // Next ID to assign to new tag
+	NextSnippetID  int // Next ID to assign to new snippet
+	NextCategoryID int // Next ID to assign to new category
+	NextTagID      int // Next ID to assign to new tag
 }
 
 // Store is the internal data structure managing all entities.
@@ -59,9 +59,9 @@ func newStore(filepath string) *Store {
 		tags:        make(map[int]*domain.Tag),
 		searchIndex: make(map[string][]int),
 		metadata: Metadata{
-			next_snippet_id:  1,
-			next_category_id: 1,
-			next_tag_id:      1,
+			NextSnippetID:  1,
+			NextCategoryID: 1,
+			NextTagID:      1,
 		},
 	}
 }
@@ -91,8 +91,8 @@ func (s *Store) load() error {
 //
 //	Increments next_snippet_id in metadata
 func (s *Store) nextSnippetID() int {
-	id := s.metadata.next_snippet_id
-	s.metadata.next_snippet_id++
+	id := s.metadata.NextSnippetID
+	s.metadata.NextSnippetID++
 	return id
 }
 
@@ -107,8 +107,8 @@ func (s *Store) nextSnippetID() int {
 //
 //	Increments next_category_id in metadata
 func (s *Store) nextCategoryID() int {
-	id := s.metadata.next_category_id
-	s.metadata.next_category_id++
+	id := s.metadata.NextCategoryID
+	s.metadata.NextCategoryID++
 	return id
 }
 
@@ -123,7 +123,7 @@ func (s *Store) nextCategoryID() int {
 //
 //	Increments next_tag_id in metadata
 func (s *Store) nextTagID() int {
-	id := s.metadata.next_tag_id
-	s.metadata.next_tag_id++
+	id := s.metadata.NextTagID
+	s.metadata.NextTagID++
 	return id
 }
