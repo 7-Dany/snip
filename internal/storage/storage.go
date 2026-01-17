@@ -49,8 +49,6 @@ func New(filepath string) *Repositories {
 // Returns:
 //
 //	error - File I/O errors, JSON marshaling errors, etc.
-//
-// Note: Currently a stub - will be implemented with JSON persistence
 func (r *Repositories) Save() error {
 	return r.store.save()
 }
@@ -60,8 +58,6 @@ func (r *Repositories) Save() error {
 // Returns:
 //
 //	error - File not found, JSON parsing errors, etc.
-//
-// Note: Currently a stub - will be implemented with JSON persistence
 func (r *Repositories) Load() error {
 	return r.store.load()
 }
