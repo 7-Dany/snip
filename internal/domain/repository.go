@@ -7,8 +7,8 @@ type SnippetRepository interface {
 	FindByTag(tagID int) ([]*Snippet, error)
 	FindByLanguage(language string) ([]*Snippet, error)
 	Search(value string) ([]*Snippet, error)
-	Create(s *Snippet) error
-	Update(s *Snippet) error
+	Create(snippet *Snippet) error
+	Update(snippet *Snippet) error
 	Delete(id int) error
 }
 
@@ -16,8 +16,8 @@ type CategoryRepository interface {
 	List() ([]*Category, error)
 	FindByID(id int) (*Category, error)
 	FindByName(name string) (*Category, error)
-	Create(c *Category) error
-	Update(c *Category) error
+	Create(category *Category) error
+	Update(category *Category) error
 	Delete(id int) error
 }
 
@@ -25,7 +25,7 @@ type TagRepository interface {
 	List() ([]*Tag, error)
 	FindByID(id int) (*Tag, error)
 	FindByName(name string) (*Tag, error)
-	Create(t *Tag) error
-	Update(t *Tag) error
+	Create(tag *Tag) error
+	Update(tag *Tag) error
 	Delete(id int) error
 }
