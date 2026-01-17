@@ -176,7 +176,7 @@ func TestContainsID(t *testing.T) {
 
 func TestIndexSnippet(t *testing.T) {
 	t.Run("indexes all words from snippet", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		snippet, err := domain.NewSnippet("Quick Sort", "go", "func quicksort() {}")
 		if err != nil {
@@ -210,7 +210,7 @@ func TestIndexSnippet(t *testing.T) {
 	})
 
 	t.Run("does not add duplicate IDs", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		snippet, err := domain.NewSnippet("Quick Sort", "go", "code")
 		if err != nil {
@@ -229,7 +229,7 @@ func TestIndexSnippet(t *testing.T) {
 	})
 
 	t.Run("indexes multiple snippets with overlapping words", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		s1, _ := domain.NewSnippet("Quick Sort", "go", "code1")
 		s1.SetID(1)
@@ -258,7 +258,7 @@ func TestIndexSnippet(t *testing.T) {
 
 func TestRemoveFromIndex(t *testing.T) {
 	t.Run("removes snippet from all words", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		snippet, err := domain.NewSnippet("Quick Sort", "go", "code")
 		if err != nil {
@@ -285,7 +285,7 @@ func TestRemoveFromIndex(t *testing.T) {
 	})
 
 	t.Run("removes only specified snippet from shared words", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		s1, _ := domain.NewSnippet("Quick Sort", "go", "code1")
 		s1.SetID(1)
@@ -321,7 +321,7 @@ func TestRemoveFromIndex(t *testing.T) {
 	})
 
 	t.Run("removing non-existent ID does not crash", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		// Remove from empty index - should not panic
 		store.removeFromIndex(999)
@@ -341,7 +341,7 @@ func TestRemoveFromIndex(t *testing.T) {
 	})
 
 	t.Run("cleans up empty word entries", func(t *testing.T) {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 
 		snippet, _ := domain.NewSnippet("Unique", "go", "code")
 		snippet.SetID(1)
@@ -364,7 +364,7 @@ func TestRemoveFromIndex(t *testing.T) {
 
 func TestSearchWithIndex(t *testing.T) {
 	setup := func() *Store {
-		store := NewStore("test.json")
+		store := newStore("test.json")
 		store.snippets = make(map[int]*domain.Snippet)
 
 		s1, _ := domain.NewSnippet("Quick Sort", "go", "fast sorting")
