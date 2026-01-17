@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -50,8 +51,8 @@ func TestNewCategory(t *testing.T) {
 	})
 }
 
-func TestCategoryMutations(t *testing.T) {
-	t.Run("SetID updates ID", func(t *testing.T) {
+func TestCategorySetID(t *testing.T) {
+	t.Run("updates ID", func(t *testing.T) {
 		category, err := NewCategory("cat")
 		if err != nil {
 			t.Fatalf("setup failed: %v", err)
@@ -63,8 +64,10 @@ func TestCategoryMutations(t *testing.T) {
 			t.Errorf("expected ID 42, got %d", category.ID())
 		}
 	})
+}
 
-	t.Run("SetName with empty string returns error", func(t *testing.T) {
+func TestCategorySetName(t *testing.T) {
+	t.Run("empty string returns error", func(t *testing.T) {
 		category, _ := NewCategory("algorithms")
 
 		err := category.SetName("")
@@ -78,7 +81,7 @@ func TestCategoryMutations(t *testing.T) {
 		}
 	})
 
-	t.Run("SetName updates name", func(t *testing.T) {
+	t.Run("updates name", func(t *testing.T) {
 		category, _ := NewCategory("algorithms")
 
 		err := category.SetName("algo")
@@ -91,7 +94,7 @@ func TestCategoryMutations(t *testing.T) {
 		}
 	})
 
-	t.Run("mutations update timestamp", func(t *testing.T) {
+	t.Run("updates timestamp", func(t *testing.T) {
 		category, err := NewCategory("cat")
 		if err != nil {
 			t.Fatalf("setup failed: %v", err)
@@ -106,6 +109,108 @@ func TestCategoryMutations(t *testing.T) {
 
 		if !category.UpdatedAt().After(originalTime) {
 			t.Error("expected UpdatedAt to change after mutation")
+		}
+	})
+}
+
+func TestCategoryJSON(t *testing.T) {
+	t.Run("marshal", func(t *testing.T) {
+		category, _ := NewCategory("algorithms")
+		category.SetID(42)
+
+		data, err := json.Marshal(category)
+		if err != nil {
+			t.Fatalf("MarshalJSON failed: %v", err)
+		}
+
+		// Verify it's valid JSON
+		var result map[string]any
+		if err := json.Unmarshal(data, &result); err != nil {
+			t.Fatalf("Generated invalid JSON: %v", err)
+		}
+
+		// Verify fields are present
+		if id, ok := result["id"].(float64); !ok || int(id) != 42 {
+			t.Errorf("Expected id=42, got %v", result["id"])
+		}
+		if name, ok := result["name"].(string); !ok || name != "algorithms" {
+			t.Errorf("Expected name='algorithms', got %v", result["name"])
+		}
+		if _, ok := result["created_at"]; !ok {
+			t.Error("Missing created_at field")
+		}
+		if _, ok := result["updated_at"]; !ok {
+			t.Error("Missing updated_at field")
+		}
+	})
+
+	t.Run("unmarshal", func(t *testing.T) {
+		jsonData := []byte(`{
+		"id": 42,
+		"name": "algorithms",
+		"created_at": "2024-01-15T10:30:00Z",
+		"updated_at": "2024-01-16T14:20:00Z"
+	}`)
+
+		var category Category
+		err := json.Unmarshal(jsonData, &category)
+		if err != nil {
+			t.Fatalf("UnmarshalJSON failed: %v", err)
+		}
+
+		if category.ID() != 42 {
+			t.Errorf("Expected ID=42, got %d", category.ID())
+		}
+		if category.Name() != "algorithms" {
+			t.Errorf("Expected name='algorithms', got '%s'", category.Name())
+		}
+		if category.CreatedAt().IsZero() {
+			t.Error("CreatedAt should not be zero")
+		}
+		if category.UpdatedAt().IsZero() {
+			t.Error("UpdatedAt should not be zero")
+		}
+	})
+
+	t.Run("round trip", func(t *testing.T) {
+		original, _ := NewCategory("databases")
+		original.SetID(123)
+
+		// Marshal
+		data, err := json.Marshal(original)
+		if err != nil {
+			t.Fatalf("Marshal failed: %v", err)
+		}
+
+		// Unmarshal
+		var restored Category
+		if err := json.Unmarshal(data, &restored); err != nil {
+			t.Fatalf("Unmarshal failed: %v", err)
+		}
+
+		// Verify all fields match
+		if restored.ID() != original.ID() {
+			t.Errorf("ID mismatch: expected %d, got %d", original.ID(), restored.ID())
+		}
+		if restored.Name() != original.Name() {
+			t.Errorf("Name mismatch: expected %s, got %s", original.Name(), restored.Name())
+		}
+		if !restored.CreatedAt().Equal(original.CreatedAt()) {
+			t.Error("CreatedAt mismatch")
+		}
+		if !restored.UpdatedAt().Equal(original.UpdatedAt()) {
+			t.Error("UpdatedAt mismatch")
+		}
+	})
+
+	t.Run("unmarshal invalid JSON", func(t *testing.T) {
+		invalidJSON := []byte(`{"id": "not a number"}`)
+
+		var category Category
+		err := json.Unmarshal(invalidJSON, &category)
+
+		if err == nil {
+			t.Error("UnmarshalJSON should return error for invalid JSON")
 		}
 	})
 }

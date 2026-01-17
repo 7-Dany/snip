@@ -119,7 +119,7 @@ func TestBuildSearchableText(t *testing.T) {
 
 	t.Run("handles large code snippet", func(t *testing.T) {
 		largeCode := ""
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			largeCode += "func test() { return nil }\n"
 		}
 
