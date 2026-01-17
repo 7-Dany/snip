@@ -180,8 +180,8 @@ func TestTagStore_Create_IncrementsMetadata(t *testing.T) {
 		t.Errorf("Second tag ID = %d, expected 2", tag2.ID())
 	}
 
-	if ts.store.metadata.next_tag_id != 3 {
-		t.Errorf("Metadata next_tag_id = %d, expected 3", ts.store.metadata.next_tag_id)
+	if ts.store.metadata.NextTagID != 3 {
+		t.Errorf("Metadata NextTagID = %d, expected 3", ts.store.metadata.NextTagID)
 	}
 }
 
