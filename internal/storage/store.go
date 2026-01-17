@@ -2,6 +2,10 @@
 package storage
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+
 	"github.com/7-Dany/snip/internal/domain"
 )
 
@@ -13,9 +17,9 @@ import (
 // - Incremented after each Create operation
 // - Never decremented (even on Delete)
 type Metadata struct {
-	NextSnippetID  int // Next ID to assign to new snippet
-	NextCategoryID int // Next ID to assign to new category
-	NextTagID      int // Next ID to assign to new tag
+	NextSnippetID  int `json:"next_snippet_id"`  // Next ID to assign to new snippet
+	NextCategoryID int `json:"next_category_id"` // Next ID to assign to new category
+	NextTagID      int `json:"next_tag_id"`      // Next ID to assign to new tag
 }
 
 // Store is the internal data structure managing all entities.
@@ -37,6 +41,15 @@ type Store struct {
 	tags        map[int]*domain.Tag      // ID → Tag
 	searchIndex map[string][]int         // word → []snippetID (inverted index)
 	metadata    Metadata                 // Auto-increment counters
+}
+
+type storeJSON struct {
+	Snippets       []*domain.Snippet  `json:"snippets"`
+	Categories     []*domain.Category `json:"categories"`
+	Tags           []*domain.Tag      `json:"tags"`
+	NextSnippetID  int                `json:"next_snippet_id"`
+	NextCategoryID int                `json:"next_category_id"`
+	NextTagID      int                `json:"next_tag_id"`
 }
 
 // newStore creates a new Store with initialized maps and metadata.
@@ -66,15 +79,157 @@ func newStore(filepath string) *Store {
 	}
 }
 
+// Add this documentation to your existing store.go methods:
+
+// toJSON converts Store's maps to slices for JSON serialization.
+// This separates internal representation (maps for O(1) lookup) from
+// persistence format (slices for human-readable JSON).
+//
+// Design: Map → Slice conversion
+// - Iterates through entity maps
+// - Appends to pre-allocated slices
+// - Includes metadata for ID continuity
+//
+// Returns:
+//
+//	*storeJSON - Serializable representation with slices
+//
+// Performance: O(n) where n = total entities
+func (s *Store) toJSON() *storeJSON {
+	jsonStore := &storeJSON{
+		Snippets:       make([]*domain.Snippet, 0, len(s.snippets)),
+		Tags:           make([]*domain.Tag, 0, len(s.tags)),
+		Categories:     make([]*domain.Category, 0, len(s.categories)),
+		NextSnippetID:  s.metadata.NextSnippetID,
+		NextCategoryID: s.metadata.NextCategoryID,
+		NextTagID:      s.metadata.NextTagID,
+	}
+
+	for _, v := range s.snippets {
+		jsonStore.Snippets = append(jsonStore.Snippets, v)
+	}
+
+	for _, v := range s.categories {
+		jsonStore.Categories = append(jsonStore.Categories, v)
+	}
+
+	for _, v := range s.tags {
+		jsonStore.Tags = append(jsonStore.Tags, v)
+	}
+
+	return jsonStore
+}
+
+// fromJSON converts JSON slices back to Store's map representation.
+// This reconstructs internal state from persisted data.
+//
+// Design: Slice → Map conversion
+// - Populates entity maps using entity IDs as keys
+// - Rebuilds search index for snippets
+// - Restores metadata counters
+//
+// Parameters:
+//
+//	data - Deserialized JSON data with entity slices
+//
+// Side effects:
+//   - Populates snippets, categories, tags maps
+//   - Rebuilds searchIndex via indexSnippet()
+//   - Updates metadata counters
+//
+// Performance: O(n*k) where:
+//
+//	n = total snippets
+//	k = average words per snippet (for indexing)
+func (s *Store) fromJSON(data *storeJSON) {
+	for _, v := range data.Snippets {
+		s.snippets[v.ID()] = v
+		s.indexSnippet(v)
+	}
+
+	for _, v := range data.Categories {
+		s.categories[v.ID()] = v
+	}
+
+	for _, v := range data.Tags {
+		s.tags[v.ID()] = v
+	}
+
+	s.metadata.NextSnippetID = data.NextSnippetID
+	s.metadata.NextCategoryID = data.NextCategoryID
+	s.metadata.NextTagID = data.NextTagID
+}
+
 // save persists all store data to the JSON file.
-// TODO: Implement JSON marshaling
+// This enables data persistence between application runs.
+//
+// Design: In-memory → Disk persistence
+// - Converts maps to slices via toJSON()
+// - Marshals to JSON bytes
+// - Writes to file with 0644 permissions
+//
+// File format: See storeJSON struct for JSON schema
+// File permissions: 0644 (owner: rw, others: r)
+//
+// Returns:
+//
+//	error - Marshal or file write errors
+//
+// Performance: O(n) where n = total entities
 func (s *Store) save() error {
+	data, err := json.Marshal(s.toJSON())
+	if err != nil {
+		return fmt.Errorf("failed to marshal data, %w", err)
+	}
+
+	err = os.WriteFile(s.path, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save json data into a file %s: %w", s.path, err)
+	}
+
 	return nil
 }
 
 // load reads all data from the JSON file into the store.
-// TODO: Implement JSON unmarshaling
+// This restores application state from previous session.
+//
+// Design: Disk → In-memory restoration
+// - Reads JSON file bytes
+// - Unmarshals to storeJSON
+// - Converts slices to maps via fromJSON()
+// - Rebuilds search index
+//
+// Behavior:
+//   - Returns nil if file doesn't exist (first run)
+//   - Returns error if file exists but JSON is invalid
+//   - Rebuilds search index automatically
+//
+// Returns:
+//
+//	error - File read or unmarshal errors (nil if file doesn't exist)
+//
+// Performance: O(n*k) where:
+//
+//	n = total snippets
+//	k = average words per snippet (for re-indexing)
 func (s *Store) load() error {
+	// read data from a file
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // Start with empty store
+		}
+		return fmt.Errorf("failed to load file %s: %w", s.path, err)
+	}
+
+	// marshall data
+	var jsonData *storeJSON = &storeJSON{}
+	err = json.Unmarshal(data, jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal json: %w", err)
+	}
+
+	s.fromJSON(jsonData)
 	return nil
 }
 

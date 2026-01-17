@@ -2,6 +2,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"slices"
 	"time"
 )
@@ -154,4 +155,81 @@ func (s *Snippet) HasTag(tagID int) bool {
 // This method is intended for use by the storage layer when persisting snippets.
 func (s *Snippet) SetID(id int) {
 	s.id = id
+}
+
+// MarshalJSON implements the json.Marshaler interface for Snippet.
+// This allows Snippets with unexported fields to be serialized to JSON
+// while maintaining encapsulation and preventing direct field access.
+//
+// Design: Creates anonymous struct with exported fields for marshaling
+//
+// Returns:
+//
+//	[]byte - JSON representation of the snippet
+//	error  - Marshaling errors (rare, usually nil)
+func (s *Snippet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		ID          int       `json:"id"`
+		Title       string    `json:"title"`
+		Language    string    `json:"language"`
+		Code        string    `json:"code"`
+		Description string    `json:"description"`
+		CategoryID  int       `json:"category_id"`
+		Tags        []int     `json:"tags"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
+	}{
+		ID:          s.id,
+		Title:       s.title,
+		Language:    s.language,
+		Code:        s.code,
+		Description: s.description,
+		CategoryID:  s.categoryID,
+		Tags:        s.tags,
+		CreatedAt:   s.createdAt,
+		UpdatedAt:   s.updatedAt,
+	})
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for Snippet.
+// This allows JSON data to be deserialized into Snippets with unexported fields
+// while maintaining encapsulation.
+//
+// Design: Uses anonymous struct to unmarshal, then copies to unexported fields
+//
+// Parameters:
+//
+//	data - JSON bytes to unmarshal
+//
+// Returns:
+//
+//	error - Unmarshal errors (invalid JSON, type mismatches, etc.)
+//
+// Note: This bypasses validation in NewSnippet() and setter methods.
+// The storage layer is trusted to only load valid data that was previously saved.
+func (s *Snippet) UnmarshalJSON(data []byte) error {
+	aux := &struct {
+		ID          int       `json:"id"`
+		Title       string    `json:"title"`
+		Language    string    `json:"language"`
+		Code        string    `json:"code"`
+		Description string    `json:"description"`
+		CategoryID  int       `json:"category_id"`
+		Tags        []int     `json:"tags"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
+	}{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	s.id = aux.ID
+	s.title = aux.Title
+	s.language = aux.Language
+	s.code = aux.Code
+	s.description = aux.Description
+	s.categoryID = aux.CategoryID
+	s.tags = aux.Tags
+	s.createdAt = aux.CreatedAt
+	s.updatedAt = aux.UpdatedAt
+	return nil
 }
