@@ -9,11 +9,9 @@ import (
 
 func TestLoadConfig(t *testing.T) {
 	t.Run("creates config with defaults when none exists", func(t *testing.T) {
-		// Setup: Use temp directory as fake home
 		tempHome := t.TempDir()
-		t.Setenv("HOME", tempHome) // Override home directory for test
 
-		config, err := LoadConfig()
+		config, err := loadConfigFromDir(tempHome)
 
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -39,7 +37,6 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("loads existing config", func(t *testing.T) {
 		tempHome := t.TempDir()
-		t.Setenv("HOME", tempHome)
 
 		// Create config manually
 		snipPath := filepath.Join(tempHome, ".snip")
@@ -52,7 +49,7 @@ func TestLoadConfig(t *testing.T) {
 		os.WriteFile(configPath, data, 0644)
 
 		// Load it
-		config, err := LoadConfig()
+		config, err := loadConfigFromDir(tempHome)
 
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -65,9 +62,8 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("creates parent directory if it doesn't exist", func(t *testing.T) {
 		tempHome := t.TempDir()
-		t.Setenv("HOME", tempHome)
 
-		config, err := LoadConfig()
+		config, err := loadConfigFromDir(tempHome)
 
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -91,7 +87,6 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("returns error when config file is invalid JSON", func(t *testing.T) {
 		tempHome := t.TempDir()
-		t.Setenv("HOME", tempHome)
 
 		snipPath := filepath.Join(tempHome, ".snip")
 		os.MkdirAll(snipPath, 0755)
@@ -100,7 +95,7 @@ func TestLoadConfig(t *testing.T) {
 		configPath := filepath.Join(snipPath, "config.json")
 		os.WriteFile(configPath, []byte("invalid json {{{"), 0644)
 
-		_, err := LoadConfig()
+		_, err := loadConfigFromDir(tempHome)
 
 		if err == nil {
 			t.Fatal("expected error when loading invalid JSON, got nil")
@@ -109,9 +104,8 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("config file contains pretty-printed JSON", func(t *testing.T) {
 		tempHome := t.TempDir()
-		t.Setenv("HOME", tempHome)
 
-		LoadConfig()
+		loadConfigFromDir(tempHome)
 
 		configPath := filepath.Join(tempHome, ".snip", "config.json")
 		data, _ := os.ReadFile(configPath)
