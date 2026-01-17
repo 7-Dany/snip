@@ -1,4 +1,3 @@
-// store.go
 package storage
 
 import (

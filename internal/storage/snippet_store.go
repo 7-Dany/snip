@@ -1,4 +1,3 @@
-// snippet_store.go
 package storage
 
 import (
