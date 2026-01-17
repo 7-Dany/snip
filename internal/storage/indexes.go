@@ -13,8 +13,19 @@ var wordCleaner = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 func extractWords(text string) []string {
 	seen := make(map[string]struct{})
 	result := []string{}
-	for _, w := range strings.Fields(text) {
-		word := strings.ToLower(wordCleaner.ReplaceAllString(w, ""))
+
+	// First: remove dots between digits (1.21 → 121)
+	dotCleaner := regexp.MustCompile(`(\d)\.(\d)`)
+	text = dotCleaner.ReplaceAllString(text, "$1$2")
+
+	// Second: remove hyphens (Quick-Sort → QuickSort)
+	text = strings.ReplaceAll(text, "-", "")
+
+	// Third: replace remaining non-alphanumeric with spaces
+	cleaned := wordCleaner.ReplaceAllString(text, " ")
+
+	for w := range strings.FieldsSeq(cleaned) {
+		word := strings.ToLower(w)
 		if word == "" {
 			continue
 		}
