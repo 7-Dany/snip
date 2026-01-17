@@ -99,8 +99,7 @@ func (cs *categoryStore) FindByName(name string) (*domain.Category, error) {
 //
 // Note: Ignores any pre-set ID on the category - always assigns new ID.
 func (cs *categoryStore) Create(category *domain.Category) error {
-	category.SetID(cs.store.metadata.next_category_id)
-	cs.store.metadata.next_category_id++
+	category.SetID(cs.store.nextCategoryID())
 
 	cs.store.categories[category.ID()] = category
 

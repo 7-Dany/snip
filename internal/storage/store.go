@@ -77,3 +77,53 @@ func (s *Store) save() error {
 func (s *Store) load() error {
 	return nil
 }
+
+// Add these methods to store.go after the newStore function
+
+// nextSnippetID returns the next available snippet ID and increments the counter.
+// This encapsulates ID generation logic and prevents direct metadata access.
+//
+// Returns:
+//
+//	int - The next unique snippet ID (starting from 1)
+//
+// Side effects:
+//
+//	Increments next_snippet_id in metadata
+func (s *Store) nextSnippetID() int {
+	id := s.metadata.next_snippet_id
+	s.metadata.next_snippet_id++
+	return id
+}
+
+// nextCategoryID returns the next available category ID and increments the counter.
+// This encapsulates ID generation logic and prevents direct metadata access.
+//
+// Returns:
+//
+//	int - The next unique category ID (starting from 1)
+//
+// Side effects:
+//
+//	Increments next_category_id in metadata
+func (s *Store) nextCategoryID() int {
+	id := s.metadata.next_category_id
+	s.metadata.next_category_id++
+	return id
+}
+
+// nextTagID returns the next available tag ID and increments the counter.
+// This encapsulates ID generation logic and prevents direct metadata access.
+//
+// Returns:
+//
+//	int - The next unique tag ID (starting from 1)
+//
+// Side effects:
+//
+//	Increments next_tag_id in metadata
+func (s *Store) nextTagID() int {
+	id := s.metadata.next_tag_id
+	s.metadata.next_tag_id++
+	return id
+}

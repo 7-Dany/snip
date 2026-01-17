@@ -175,8 +175,7 @@ func (ss *snippetStore) Search(value string) ([]*domain.Snippet, error) {
 // Design note: Always assigns new ID (ignores any pre-set ID)
 // Rationale: Repository controls ID generation for consistency
 func (ss *snippetStore) Create(snippet *domain.Snippet) error {
-	snippet.SetID(ss.store.metadata.next_snippet_id)
-	ss.store.metadata.next_snippet_id++
+	snippet.SetID(ss.store.nextSnippetID())
 
 	ss.store.snippets[snippet.ID()] = snippet
 	ss.store.indexSnippet(snippet)

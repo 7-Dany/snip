@@ -97,8 +97,7 @@ func (ts *tagStore) FindByName(name string) (*domain.Tag, error) {
 //
 // Note: Ignores any pre-set ID on the tag - always assigns new ID.
 func (ts *tagStore) Create(tag *domain.Tag) error {
-	tag.SetID(ts.store.metadata.next_tag_id)
-	ts.store.metadata.next_tag_id++
+	tag.SetID(ts.store.nextTagID())
 
 	ts.store.tags[tag.ID()] = tag
 
