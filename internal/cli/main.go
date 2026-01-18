@@ -6,13 +6,14 @@ import (
 
 	"github.com/7-Dany/snip/internal/cli/commands"
 	"github.com/7-Dany/snip/internal/cli/components"
+	"github.com/7-Dany/snip/internal/cli/config"
 	"github.com/7-Dany/snip/internal/cli/tui"
 	"github.com/7-Dany/snip/internal/storage"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func CLIMain() {
-	config, err := LoadConfig()
+	config, err := config.LoadConfig()
 	if err != nil {
 		commands.PrintError("Error loading config!" + err.Error())
 		os.Exit(1)
