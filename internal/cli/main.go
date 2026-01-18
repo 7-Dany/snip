@@ -12,7 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func CLIMain() {
+func Run() {
 	config, err := config.LoadConfig()
 	if err != nil {
 		commands.PrintError("Error loading config!" + err.Error())
