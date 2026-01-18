@@ -1,6 +1,6 @@
-// Package cli provides command-line interface functionality for the snippet manager.
+// Package command provides command-line interface functionality for the snippet manager.
 // This file implements category management commands with interactive TUI support.
-package cli
+package commands
 
 import (
 	"errors"

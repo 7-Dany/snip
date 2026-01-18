@@ -1,4 +1,4 @@
-package cli
+package commands
 
 import (
 	"github.com/7-Dany/snip/internal/storage"
