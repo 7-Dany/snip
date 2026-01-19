@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build for all platforms
+        run: make build-all
+
+      - name: Create release archives
+        run: |
+          mkdir -p dist/releases
+          cd dist
+
+          # Linux amd64
+          tar -czf releases/snip-${{ steps.get_version.outputs.VERSION }}-linux-amd64.tar.gz snip-linux-amd64
+
+          # Linux arm64
+          tar -czf releases/snip-${{ steps.get_version.outputs.VERSION }}-linux-arm64.tar.gz snip-linux-arm64
+
+          # macOS amd64
+          tar -czf releases/snip-${{ steps.get_version.outputs.VERSION }}-darwin-amd64.tar.gz snip-darwin-amd64
+
+          # macOS arm64
+          tar -czf releases/snip-${{ steps.get_version.outputs.VERSION }}-darwin-arm64.tar.gz snip-darwin-arm64
+
+          # Windows amd64
+          zip -q releases/snip-${{ steps.get_version.outputs.VERSION }}-windows-amd64.zip snip-windows-amd64.exe
+
+      - name: Generate checksums
+        run: |
+          cd dist/releases
+          shasum -a 256 * > SHA256SUMS
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/releases/*.tar.gz
+            dist/releases/*.zip
+            dist/releases/SHA256SUMS
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
