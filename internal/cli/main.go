@@ -38,14 +38,16 @@ func Run() {
 	// Otherwise, launch TUI
 	homeTab := tui.NewHomeTab()
 	categoriesTab := tui.NewCategoriesTab(repos)
+	tagsTab := tui.NewTagsTab(repos)         // You'll need to implement this
+	snippetsTab := tui.NewSnippetsTab(repos) // You'll need to implement this
 
 	tabs, err := components.NewTabs(
 		[]string{"Home", "Categories", "Tags", "Snippets"},
 		[]components.TabModel{
 			homeTab,
 			categoriesTab,
-			homeTab, // Placeholder for Tags
-			homeTab, // Placeholder for Snippets
+			tagsTab,
+			snippetsTab,
 		},
 	)
 	if err != nil {
@@ -53,7 +55,12 @@ func Run() {
 		os.Exit(1)
 	}
 
-	if _, err := tea.NewProgram(tabs).Run(); err != nil {
+	// Configure tabs
+	tabs.SetLabelWidth(20)
+
+	// Run with alt screen for clean display
+	p := tea.NewProgram(tabs, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}

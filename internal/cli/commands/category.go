@@ -1,5 +1,3 @@
-// Package command provides command-line interface functionality for the snippet manager.
-// This file implements category management commands with interactive TUI support.
 package commands
 
 import (
@@ -16,51 +14,14 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 
-// CategoryCommand handles all category-related CLI operations.
-// This type wraps the storage repositories and provides command routing
-// for category management.
-//
-// Design: Command pattern with dependency injection
-// - Wraps *storage.Repositories for data access
-// - Routes subcommands to handler methods
-// - Supports both interactive (TUI) and argument-based modes
-//
-// Supported operations:
-//   - list: Display all categories in formatted table
-//   - create: Add new category (interactive or via argument)
-//   - delete: Remove category with confirmation prompt
 type CategoryCommand struct {
 	repos *storage.Repositories
 }
 
-// NewCategoryCommand creates a new CategoryCommand with the given repositories.
-// This is the public constructor used by the CLI coordinator.
-//
-// Parameters:
-//
-//	repos - Storage repositories for data access
 func NewCategoryCommand(repos *storage.Repositories) *CategoryCommand {
 	return &CategoryCommand{repos: repos}
 }
 
-// manage routes category subcommands to their respective handlers.
-// This is the main entry point called by the CLI coordinator.
-//
-// Performance: O(1) for routing, actual performance depends on handler
-//
-// Parameters:
-//
-//	args - Command arguments (first element is subcommand)
-//
-// Supported subcommands:
-//   - "list": List all categories
-//   - "create": Create new category
-//   - "delete": Delete category by ID
-//
-// Error handling:
-//   - Shows error if no subcommand provided
-//   - Shows error for unknown subcommands
-//   - Case-insensitive subcommand matching
 func (cc *CategoryCommand) manage(args []string) {
 	if len(args) == 0 {
 		PrintError("No subcommand provided. Use 'snip help category' for available commands")
@@ -79,19 +40,6 @@ func (cc *CategoryCommand) manage(args []string) {
 	}
 }
 
-// list retrieves and displays all categories in a formatted table.
-// Uses go-pretty/table with StyleColoredBright for visual output.
-//
-// Performance: O(n) where n = total categories
-//
-// Output format:
-//
-//	Colored table with columns: ID, Name, CreatedAt, UpdatedAt
-//	Shows helpful message if no categories exist
-//
-// Error handling:
-//   - Prints error if repository access fails
-//   - Shows info message for empty result set
 func (cc *CategoryCommand) list() {
 	categories, err := cc.repos.Categories.List()
 	if err != nil {
@@ -121,27 +69,7 @@ func (cc *CategoryCommand) list() {
 	t.Render()
 }
 
-// create adds a new category to the repository.
-// Supports both interactive (TUI) and argument-based modes.
-//
-// Performance: O(n) for duplicate check, O(1) for creation
-//
-// Parameters:
-//
-//	args - Optional category name as first element
-//
-// Behavior:
-//   - If args empty: Launch interactive Bubbletea prompt
-//   - If args[0] provided: Use as category name
-//
-// Validation:
-//   - Checks for duplicate names (case-insensitive)
-//   - Validates domain constraints via domain.NewCategory()
-//
-// Error handling:
-//   - Shows error for duplicate names
-//   - Shows error if creation fails
-//   - Shows success message with category name
+// create supports both argument and interactive modes
 func (cc *CategoryCommand) create(args []string) {
 	var name string
 	if len(args) == 0 {
@@ -154,6 +82,7 @@ func (cc *CategoryCommand) create(args []string) {
 		name = args[0]
 	}
 
+	// Check for duplicates
 	existed, err := cc.repos.Categories.FindByName(name)
 	if err != nil && !errors.Is(err, domain.ErrNotFound) {
 		PrintError(fmt.Sprintf("Internal error, failed to check category by name: %v", err))
@@ -180,34 +109,6 @@ func (cc *CategoryCommand) create(args []string) {
 	PrintSuccess(fmt.Sprintf("Successfully created category name: '%v'", name))
 }
 
-// delete removes a category by ID after user confirmation.
-// Always prompts for confirmation before deletion.
-//
-// Performance: O(1) for lookup and deletion
-//
-// Parameters:
-//
-//	args - Category ID as first element (must be numeric string)
-//
-// Validation:
-//   - Requires ID argument
-//   - Validates ID is numeric
-//   - Checks category exists before prompting
-//
-// User interaction:
-//   - Displays category name in confirmation prompt
-//   - Accepts 'y' (case-insensitive) to confirm
-//   - Any other input cancels deletion
-//
-// Error handling:
-//   - Shows error for missing/invalid ID
-//   - Shows error if category not found
-//   - Shows info message if cancelled
-//   - Shows success message if deleted
-//
-// Note: Does not cascade delete snippets in this category.
-// Snippets will have category_id but category won't exist (orphaned reference).
-// CLI layer should handle this when displaying snippets.
 func (cc *CategoryCommand) delete(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip category delete <id>'")
@@ -226,7 +127,7 @@ func (cc *CategoryCommand) delete(args []string) {
 		return
 	}
 
-	if err != nil && !errors.Is(err, domain.ErrNotFound) {
+	if err != nil {
 		PrintError(fmt.Sprintf("Failed to find category: %v", err))
 		return
 	}
@@ -249,25 +150,12 @@ func (cc *CategoryCommand) delete(args []string) {
 	PrintSuccess(fmt.Sprintf("Deleted category with id: '%v'", id))
 }
 
-// categoryInputModel is the Bubbletea model for interactive category name input.
-// Implements tea.Model interface (Init, Update, View).
-//
-// Design: Single-field form using bubbles/textinput
-// - Focused by default for immediate typing
-// - Shows placeholder text for guidance
-// - Character limit enforced (50 chars)
+// Interactive prompt
 type categoryInputModel struct {
 	textInput textinput.Model
 	cancelled bool
 }
 
-// newCategoryInputModel initializes a new category input form with default settings.
-//
-// Configuration:
-//   - Placeholder: "e.g., algorithms, web-dev, utils..."
-//   - Auto-focused for immediate input
-//   - Character limit: 50
-//   - Display width: 40 characters
 func newCategoryInputModel() categoryInputModel {
 	ti := textinput.New()
 	ti.Placeholder = "e.g., algorithms, web-dev, utils..."
@@ -280,32 +168,10 @@ func newCategoryInputModel() categoryInputModel {
 	}
 }
 
-// Init initializes the Bubbletea program and returns the blink command.
-// Required by tea.Model interface.
-//
-// Returns:
-//
-//	textinput.Blink - Makes cursor blink for better UX
 func (m categoryInputModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-// promptForName launches an interactive Bubbletea TUI for category name input.
-// This provides a user-friendly alternative to command-line arguments.
-//
-// Performance: Blocks until user input or cancellation
-//
-// Returns:
-//
-//	Trimmed category name, or empty string if cancelled/empty
-//
-// User interaction:
-//   - Enter: Confirm input
-//   - Esc/Ctrl+C: Cancel (returns empty string)
-//   - Character limit: 50 chars
-//
-// Note: Returns empty string for both cancellation and empty input.
-// Caller should handle empty string appropriately.
 func (cc *CategoryCommand) promptForName() string {
 	p := tea.NewProgram(newCategoryInputModel())
 	finalModel, err := p.Run()
@@ -315,7 +181,6 @@ func (cc *CategoryCommand) promptForName() string {
 	}
 
 	m := finalModel.(categoryInputModel)
-
 	if m.cancelled {
 		return ""
 	}
@@ -329,17 +194,6 @@ func (cc *CategoryCommand) promptForName() string {
 	return value
 }
 
-// Update handles keyboard events and updates the model state.
-// Required by tea.Model interface.
-//
-// Keyboard handling:
-//   - Enter: Accept input and quit
-//   - Esc/Ctrl+C: Cancel and quit
-//   - Other keys: Handled by textinput component
-//
-// Returns:
-//
-//	Updated model and command (tea.Quit for termination)
 func (m categoryInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -358,18 +212,6 @@ func (m categoryInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View renders the current state of the input form as a string.
-// Required by tea.Model interface.
-//
-// Output format:
-//
-//	Title with emoji
-//	Input field with current value
-//	Help text for keyboard shortcuts
-//
-// Returns:
-//
-//	Formatted string for terminal display
 func (m categoryInputModel) View() string {
 	return fmt.Sprintf(
 		"\n✨ Create a new category\n\n"+
