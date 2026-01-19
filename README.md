@@ -2,7 +2,7 @@
 
 > A beautiful terminal-based code snippet manager built with Go and Bubble Tea
 
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/7-Dany/snip)](https://github.com/7-Dany/snip/releases)
 
@@ -13,7 +13,6 @@
 - 🏷️ **Tag System** - Multi-tag support for flexible organization
 - 🔍 **Full-Text Search** - Quickly find snippets by title, description, or code
 - ⌨️ **Syntax Highlighting** - Code editor with line numbers
-- 💾 **SQLite Storage** - Fast, reliable local database
 - 🚀 **Dual Interface** - Use interactive TUI or traditional CLI commands
 
 ## 📸 Screenshots
@@ -239,7 +238,7 @@ snip/
 
 ### Prerequisites
 
-- Go 1.21 or higher
+  - Go 1.25 or higher
 
 ### Building
 
