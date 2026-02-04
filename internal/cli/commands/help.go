@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -8,23 +9,26 @@ import (
 	"github.com/fatih/color"
 )
 
+// HelpCommand handles help-related operations.
 type HelpCommand struct {
 	repos *storage.Repositories
 }
 
+// NewHelpCommand creates a new HelpCommand instance.
 func NewHelpCommand(repos *storage.Repositories) *HelpCommand {
 	return &HelpCommand{repos: repos}
 }
 
+// manage routes help requests to the appropriate handler.
 func (hc *HelpCommand) manage(args []string) {
-	if len(args) == 0 {
-		hc.Print("")
-		return
+	topic := ""
+	if len(args) > 0 {
+		topic = strings.ToLower(args[0])
 	}
-
-	hc.Print(strings.ToLower(args[0]))
+	hc.Print(topic)
 }
 
+// Print displays help information for the specified topic.
 func (hc *HelpCommand) Print(topic string) {
 	cyan := color.New(color.FgCyan, color.Bold)
 	white := color.New(color.FgWhite)

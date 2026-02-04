@@ -1,9 +1,13 @@
+// Package commands provides the CLI command handlers for SNIP.
+// It implements the command-line interface for managing snippets, categories, and tags.
 package commands
 
 import (
 	"github.com/7-Dany/snip/internal/storage"
 )
 
+// CLI coordinates all command handlers and provides the main entry point
+// for command execution.
 type CLI struct {
 	snippet  *SnippetCommand
 	category *CategoryCommand
@@ -11,6 +15,7 @@ type CLI struct {
 	help     *HelpCommand
 }
 
+// NewCLI creates a new CLI instance with all command handlers initialized.
 func NewCLI(repos *storage.Repositories) *CLI {
 	return &CLI{
 		snippet:  NewSnippetCommand(repos),
@@ -20,6 +25,8 @@ func NewCLI(repos *storage.Repositories) *CLI {
 	}
 }
 
+// Run executes the appropriate command based on the provided arguments.
+// args[0] is expected to be the program name, args[1] is the command.
 func (cli *CLI) Run(args []string) {
 	if len(args) < 2 {
 		PrintError("no command provided")
@@ -27,16 +34,20 @@ func (cli *CLI) Run(args []string) {
 		return
 	}
 
-	switch args[1] {
+	command := args[1]
+	commandArgs := args[2:]
+
+	switch command {
 	case "help":
-		cli.help.manage(args[2:])
+		cli.help.manage(commandArgs)
 	case "snippet":
-		cli.snippet.manage(args[2:])
+		cli.snippet.manage(commandArgs)
 	case "category":
-		cli.category.manage(args[2:])
+		cli.category.manage(commandArgs)
 	case "tag":
-		cli.tag.manage(args[2:])
+		cli.tag.manage(commandArgs)
 	default:
+		// Assume it's a snippet command for backward compatibility
 		cli.snippet.manage(args[1:])
 	}
 }

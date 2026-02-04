@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -9,37 +10,42 @@ import (
 
 	"github.com/7-Dany/snip/internal/domain"
 	"github.com/7-Dany/snip/internal/storage"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 
+// TagCommand handles tag-related operations.
 type TagCommand struct {
 	repos *storage.Repositories
 }
 
+// NewTagCommand creates a new TagCommand instance.
 func NewTagCommand(repos *storage.Repositories) *TagCommand {
 	return &TagCommand{repos: repos}
 }
 
+// manage routes tag subcommands to the appropriate handler.
 func (tc *TagCommand) manage(args []string) {
 	if len(args) == 0 {
 		PrintError("No subcommand provided. Use 'snip help tag' for available commands")
 		return
 	}
 
-	switch strings.ToLower(args[0]) {
+	subcommand := strings.ToLower(args[0])
+	subcommandArgs := args[1:]
+
+	switch subcommand {
 	case "list":
 		tc.list()
 	case "create":
-		tc.create(args[1:])
+		tc.create(subcommandArgs)
 	case "delete":
-		tc.delete(args[1:])
+		tc.delete(subcommandArgs)
 	default:
 		PrintError(fmt.Sprintf("Unknown command '%s'. Use 'snip help tag' for available commands", args[0]))
 	}
 }
 
+// list displays all tags in a formatted table.
 func (tc *TagCommand) list() {
 	tags, err := tc.repos.Tags.List()
 	if err != nil {
@@ -54,7 +60,7 @@ func (tc *TagCommand) list() {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Name", "CreatedAt", "UpdatedAt"})
+	t.AppendHeader(table.Row{"ID", "Name", "Created", "Updated"})
 
 	for _, tag := range tags {
 		t.AppendRow(table.Row{
@@ -69,46 +75,59 @@ func (tc *TagCommand) list() {
 	t.Render()
 }
 
-// create supports both argument and interactive modes
+// create creates a new tag with the given name or prompts for input.
 func (tc *TagCommand) create(args []string) {
 	var name string
+
 	if len(args) == 0 {
-		name = tc.promptForName()
+		name = promptForInput(
+			"Create a new tag",
+			"🏷️",
+			"Tag name",
+			"e.g., performance, security, beginner...",
+			50,
+			40,
+		)
 		if name == "" {
 			PrintInfo("Create cancelled")
 			return
 		}
 	} else {
-		name = args[0]
+		name = strings.TrimSpace(args[0])
+		if name == "" {
+			PrintError("tag name cannot be empty")
+			return
+		}
 	}
 
 	// Check for duplicates
-	existed, err := tc.repos.Tags.FindByName(name)
-	if err != nil && !errors.Is(err, domain.ErrNotFound) {
-		PrintError(fmt.Sprintf("Internal error, failed to check tag by name: %v", err))
+	existing, err := tc.repos.Tags.FindByName(name)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		PrintError(fmt.Sprintf("failed to check for existing tag: %v", err))
 		return
 	}
 
-	if existed != nil {
+	if existing != nil {
 		PrintError("tag already exists")
 		return
 	}
 
+	// Create and save the tag
 	tag, err := domain.NewTag(name)
 	if err != nil {
 		PrintError(fmt.Sprintf("failed to create tag: %v", err))
 		return
 	}
 
-	err = tc.repos.Tags.Create(tag)
-	if err != nil {
-		PrintError(fmt.Sprintf("failed to register tag to storage: %v", err))
+	if err := tc.repos.Tags.Create(tag); err != nil {
+		PrintError(fmt.Sprintf("failed to save tag: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Successfully created tag name: '%v'", name))
+	PrintSuccess(fmt.Sprintf("Created tag '%s' (ID: %d)", name, tag.ID()))
 }
 
+// delete removes a tag after user confirmation.
 func (tc *TagCommand) delete(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip tag delete <id>'")
@@ -117,12 +136,13 @@ func (tc *TagCommand) delete(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		PrintError(fmt.Sprintf("Validation failed. 'id' must be a number: %v", err))
+		PrintError(fmt.Sprintf("Invalid ID '%s'. ID must be a number", args[0]))
 		return
 	}
 
+	// Find the tag to confirm deletion
 	tag, err := tc.repos.Tags.FindByID(id)
-	if errors.Is(err, domain.ErrNotFound) {
+	if errors.Is(err, storage.ErrNotFound) {
 		PrintError(fmt.Sprintf("Tag with ID %d not found", id))
 		return
 	}
@@ -132,91 +152,21 @@ func (tc *TagCommand) delete(args []string) {
 		return
 	}
 
+	// Confirm deletion
 	fmt.Printf("Are you sure you want to delete tag '%s'? (y/n): ", tag.Name())
 	var response string
 	fmt.Scanln(&response)
 
-	if strings.ToLower(response) != "y" {
+	if strings.ToLower(strings.TrimSpace(response)) != "y" {
 		PrintInfo("Delete cancelled")
 		return
 	}
 
-	err = tc.repos.Tags.Delete(id)
-	if err != nil {
-		PrintError(fmt.Sprintf("Delete failed, couldn't delete tag: %v", err))
+	// Delete the tag
+	if err := tc.repos.Tags.Delete(id); err != nil {
+		PrintError(fmt.Sprintf("Failed to delete tag: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Deleted tag with id: '%v'", id))
-}
-
-// Interactive prompt
-type tagInputModel struct {
-	textInput textinput.Model
-	cancelled bool
-}
-
-func newTagInputModel() tagInputModel {
-	ti := textinput.New()
-	ti.Placeholder = "e.g., performance, security, beginner..."
-	ti.Focus()
-	ti.CharLimit = 50
-	ti.Width = 40
-
-	return tagInputModel{
-		textInput: ti,
-	}
-}
-
-func (m tagInputModel) Init() tea.Cmd {
-	return textinput.Blink
-}
-
-func (tc *TagCommand) promptForName() string {
-	p := tea.NewProgram(newTagInputModel())
-	finalModel, err := p.Run()
-	if err != nil {
-		PrintError(fmt.Sprintf("Failed to run input prompt: %v", err))
-		return ""
-	}
-
-	m := finalModel.(tagInputModel)
-	if m.cancelled {
-		return ""
-	}
-
-	value := strings.TrimSpace(m.textInput.Value())
-	if value == "" {
-		PrintError("Tag name cannot be empty")
-		return ""
-	}
-
-	return value
-}
-
-func (m tagInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
-			return m, tea.Quit
-		case tea.KeyCtrlC, tea.KeyEsc:
-			m.cancelled = true
-			return m, tea.Quit
-		}
-	}
-
-	m.textInput, cmd = m.textInput.Update(msg)
-	return m, cmd
-}
-
-func (m tagInputModel) View() string {
-	return fmt.Sprintf(
-		"\n🏷️  Create a new tag\n\n"+
-			"Tag name: %s\n\n"+
-			"(press Enter to confirm, Esc to cancel)\n",
-		m.textInput.View(),
-	)
+	PrintSuccess(fmt.Sprintf("Deleted tag '%s' (ID: %d)", tag.Name(), id))
 }

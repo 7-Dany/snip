@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -9,37 +10,42 @@ import (
 
 	"github.com/7-Dany/snip/internal/domain"
 	"github.com/7-Dany/snip/internal/storage"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 
+// CategoryCommand handles category-related operations.
 type CategoryCommand struct {
 	repos *storage.Repositories
 }
 
+// NewCategoryCommand creates a new CategoryCommand instance.
 func NewCategoryCommand(repos *storage.Repositories) *CategoryCommand {
 	return &CategoryCommand{repos: repos}
 }
 
+// manage routes category subcommands to the appropriate handler.
 func (cc *CategoryCommand) manage(args []string) {
 	if len(args) == 0 {
 		PrintError("No subcommand provided. Use 'snip help category' for available commands")
 		return
 	}
 
-	switch strings.ToLower(args[0]) {
+	subcommand := strings.ToLower(args[0])
+	subcommandArgs := args[1:]
+
+	switch subcommand {
 	case "list":
 		cc.list()
 	case "create":
-		cc.create(args[1:])
+		cc.create(subcommandArgs)
 	case "delete":
-		cc.delete(args[1:])
+		cc.delete(subcommandArgs)
 	default:
 		PrintError(fmt.Sprintf("Unknown command '%s'. Use 'snip help category' for available commands", args[0]))
 	}
 }
 
+// list displays all categories in a formatted table.
 func (cc *CategoryCommand) list() {
 	categories, err := cc.repos.Categories.List()
 	if err != nil {
@@ -54,7 +60,7 @@ func (cc *CategoryCommand) list() {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Name", "CreatedAt", "UpdatedAt"})
+	t.AppendHeader(table.Row{"ID", "Name", "Created", "Updated"})
 
 	for _, category := range categories {
 		t.AppendRow(table.Row{
@@ -69,46 +75,59 @@ func (cc *CategoryCommand) list() {
 	t.Render()
 }
 
-// create supports both argument and interactive modes
+// create creates a new category with the given name or prompts for input.
 func (cc *CategoryCommand) create(args []string) {
 	var name string
+
 	if len(args) == 0 {
-		name = cc.promptForName()
+		name = promptForInput(
+			"Create a new category",
+			"✨",
+			"Category name",
+			"e.g., algorithms, web-dev, utils...",
+			50,
+			40,
+		)
 		if name == "" {
 			PrintInfo("Create cancelled")
 			return
 		}
 	} else {
-		name = args[0]
+		name = strings.TrimSpace(args[0])
+		if name == "" {
+			PrintError("category name cannot be empty")
+			return
+		}
 	}
 
 	// Check for duplicates
-	existed, err := cc.repos.Categories.FindByName(name)
-	if err != nil && !errors.Is(err, domain.ErrNotFound) {
-		PrintError(fmt.Sprintf("Internal error, failed to check category by name: %v", err))
+	existing, err := cc.repos.Categories.FindByName(name)
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		PrintError(fmt.Sprintf("failed to check for existing category: %v", err))
 		return
 	}
 
-	if existed != nil {
+	if existing != nil {
 		PrintError("category already exists")
 		return
 	}
 
+	// Create and save the category
 	category, err := domain.NewCategory(name)
 	if err != nil {
 		PrintError(fmt.Sprintf("failed to create category: %v", err))
 		return
 	}
 
-	err = cc.repos.Categories.Create(category)
-	if err != nil {
-		PrintError(fmt.Sprintf("failed to register category to storage: %v", err))
+	if err := cc.repos.Categories.Create(category); err != nil {
+		PrintError(fmt.Sprintf("failed to save category: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Successfully created category name: '%v'", name))
+	PrintSuccess(fmt.Sprintf("Created category '%s' (ID: %d)", name, category.ID()))
 }
 
+// delete removes a category after user confirmation.
 func (cc *CategoryCommand) delete(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip category delete <id>'")
@@ -117,12 +136,13 @@ func (cc *CategoryCommand) delete(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		PrintError(fmt.Sprintf("Validation failed. 'id' must be a number: %v", err))
+		PrintError(fmt.Sprintf("Invalid ID '%s'. ID must be a number", args[0]))
 		return
 	}
 
+	// Find the category to confirm deletion
 	category, err := cc.repos.Categories.FindByID(id)
-	if errors.Is(err, domain.ErrNotFound) {
+	if errors.Is(err, storage.ErrNotFound) {
 		PrintError(fmt.Sprintf("Category with ID %d not found", id))
 		return
 	}
@@ -132,91 +152,21 @@ func (cc *CategoryCommand) delete(args []string) {
 		return
 	}
 
+	// Confirm deletion
 	fmt.Printf("Are you sure you want to delete category '%s'? (y/n): ", category.Name())
 	var response string
 	fmt.Scanln(&response)
 
-	if strings.ToLower(response) != "y" {
+	if strings.ToLower(strings.TrimSpace(response)) != "y" {
 		PrintInfo("Delete cancelled")
 		return
 	}
 
-	err = cc.repos.Categories.Delete(id)
-	if err != nil {
-		PrintError(fmt.Sprintf("Delete failed, couldn't delete category: %v", err))
+	// Delete the category
+	if err := cc.repos.Categories.Delete(id); err != nil {
+		PrintError(fmt.Sprintf("Failed to delete category: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Deleted category with id: '%v'", id))
-}
-
-// Interactive prompt
-type categoryInputModel struct {
-	textInput textinput.Model
-	cancelled bool
-}
-
-func newCategoryInputModel() categoryInputModel {
-	ti := textinput.New()
-	ti.Placeholder = "e.g., algorithms, web-dev, utils..."
-	ti.Focus()
-	ti.CharLimit = 50
-	ti.Width = 40
-
-	return categoryInputModel{
-		textInput: ti,
-	}
-}
-
-func (m categoryInputModel) Init() tea.Cmd {
-	return textinput.Blink
-}
-
-func (cc *CategoryCommand) promptForName() string {
-	p := tea.NewProgram(newCategoryInputModel())
-	finalModel, err := p.Run()
-	if err != nil {
-		PrintError(fmt.Sprintf("Failed to run input prompt: %v", err))
-		return ""
-	}
-
-	m := finalModel.(categoryInputModel)
-	if m.cancelled {
-		return ""
-	}
-
-	value := strings.TrimSpace(m.textInput.Value())
-	if value == "" {
-		PrintError("Category name cannot be empty")
-		return ""
-	}
-
-	return value
-}
-
-func (m categoryInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
-			return m, tea.Quit
-		case tea.KeyCtrlC, tea.KeyEsc:
-			m.cancelled = true
-			return m, tea.Quit
-		}
-	}
-
-	m.textInput, cmd = m.textInput.Update(msg)
-	return m, cmd
-}
-
-func (m categoryInputModel) View() string {
-	return fmt.Sprintf(
-		"\n✨ Create a new category\n\n"+
-			"Category name: %s\n\n"+
-			"(press Enter to confirm, Esc to cancel)\n",
-		m.textInput.View(),
-	)
+	PrintSuccess(fmt.Sprintf("Deleted category '%s' (ID: %d)", category.Name(), id))
 }

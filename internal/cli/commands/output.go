@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -7,7 +8,7 @@ import (
 	"github.com/fatih/color"
 )
 
-// PrintLogo displays the application logo with a magical unicorn
+// PrintLogo displays the application logo with branding.
 func PrintLogo() {
 	magenta := color.New(color.FgMagenta, color.Bold)
 	yellow := color.New(color.FgYellow)
@@ -47,7 +48,7 @@ func PrintLogo() {
 	fmt.Println()
 }
 
-// PrintLoading displays a loading message with animation
+// PrintLoading displays a loading message with animation.
 func PrintLoading(msg string) {
 	yellow := color.New(color.FgYellow)
 	yellow.Printf("⚡ %s", msg)
@@ -55,31 +56,31 @@ func PrintLoading(msg string) {
 	fmt.Println()
 }
 
-// PrintSuccess displays a success message in green
+// PrintSuccess displays a success message in green.
 func PrintSuccess(msg string) {
 	green := color.New(color.FgGreen, color.Bold)
 	green.Printf("✓ %s\n", msg)
 }
 
-// PrintError displays an error message in red
+// PrintError displays an error message in red.
 func PrintError(msg string) {
 	red := color.New(color.FgRed, color.Bold)
 	red.Printf("✗ %s\n", msg)
 }
 
-// PrintInfo displays an informational message in cyan
+// PrintInfo displays an informational message in cyan.
 func PrintInfo(msg string) {
 	cyan := color.New(color.FgCyan)
 	cyan.Println(msg)
 }
 
-// PrintCommand displays the command being executed
+// PrintCommand displays the command being executed.
 func PrintCommand(command string) {
 	gray := color.New(color.FgHiWhite)
 	gray.Printf("\n→ Executing command: %s\n\n", command)
 }
 
-// ClearScreen clear everything on screen
+// ClearScreen clears the terminal screen.
 func ClearScreen() {
 	fmt.Print("\033[H\033[2J")
 }

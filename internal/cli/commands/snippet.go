@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -15,39 +16,45 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 
+// SnippetCommand handles snippet-related operations.
 type SnippetCommand struct {
 	repos *storage.Repositories
 }
 
+// NewSnippetCommand creates a new SnippetCommand instance.
 func NewSnippetCommand(repos *storage.Repositories) *SnippetCommand {
 	return &SnippetCommand{repos: repos}
 }
 
+// manage routes snippet subcommands to the appropriate handler.
 func (sc *SnippetCommand) manage(args []string) {
 	if len(args) == 0 {
 		PrintError("No subcommand provided. Use 'snip help snippet' for available commands")
 		return
 	}
 
-	switch strings.ToLower(args[0]) {
+	subcommand := strings.ToLower(args[0])
+	subcommandArgs := args[1:]
+
+	switch subcommand {
 	case "list":
-		sc.list(args[1:])
+		sc.list(subcommandArgs)
 	case "show":
-		sc.show(args[1:])
+		sc.show(subcommandArgs)
 	case "create":
 		sc.create()
 	case "update":
-		sc.update(args[1:])
+		sc.update(subcommandArgs)
 	case "delete":
-		sc.delete(args[1:])
+		sc.delete(subcommandArgs)
 	case "search":
-		sc.search(args[1:])
+		sc.search(subcommandArgs)
 	default:
 		PrintError(fmt.Sprintf("Unknown command '%s'. Use 'snip help snippet' for available commands", args[0]))
 	}
 }
 
-// list displays all snippets with optional filters
+// list displays all snippets with optional filters.
 func (sc *SnippetCommand) list(args []string) {
 	var categoryID, tagID int
 	var language string
@@ -63,7 +70,7 @@ func (sc *SnippetCommand) list(args []string) {
 			var err error
 			categoryID, err = strconv.Atoi(args[i+1])
 			if err != nil {
-				PrintError(fmt.Sprintf("Validation failed. '--category' must be a number: %v", err))
+				PrintError(fmt.Sprintf("Invalid category ID '%s'. Must be a number", args[i+1]))
 				return
 			}
 			i++
@@ -75,7 +82,7 @@ func (sc *SnippetCommand) list(args []string) {
 			var err error
 			tagID, err = strconv.Atoi(args[i+1])
 			if err != nil {
-				PrintError(fmt.Sprintf("Validation failed. '--tag' must be a number: %v", err))
+				PrintError(fmt.Sprintf("Invalid tag ID '%s'. Must be a number", args[i+1]))
 				return
 			}
 			i++
@@ -116,6 +123,7 @@ func (sc *SnippetCommand) list(args []string) {
 	sc.displaySnippets(snippets)
 }
 
+// show displays the full details of a specific snippet.
 func (sc *SnippetCommand) show(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip snippet show <id>'")
@@ -124,12 +132,12 @@ func (sc *SnippetCommand) show(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		PrintError(fmt.Sprintf("Validation failed. 'id' must be a number: %v", err))
+		PrintError(fmt.Sprintf("Invalid ID '%s'. ID must be a number", args[0]))
 		return
 	}
 
 	snippet, err := sc.repos.Snippets.FindByID(id)
-	if errors.Is(err, domain.ErrNotFound) {
+	if errors.Is(err, storage.ErrNotFound) {
 		PrintError(fmt.Sprintf("Snippet with ID %d not found", id))
 		return
 	}
@@ -139,15 +147,21 @@ func (sc *SnippetCommand) show(args []string) {
 		return
 	}
 
+	// Load categories and tags once for resolving names
+	categoryMap, tagMap, err := sc.loadLookupMaps()
+	if err != nil {
+		PrintError(fmt.Sprintf("Failed to load lookup data: %v", err))
+		return
+	}
+
 	categoryName := "N/A"
 	if snippet.CategoryID() > 0 {
-		category, err := sc.repos.Categories.FindByID(snippet.CategoryID())
-		if err == nil && category != nil {
-			categoryName = category.Name()
+		if cat, ok := categoryMap[snippet.CategoryID()]; ok {
+			categoryName = cat.Name()
 		}
 	}
 
-	tagNames := sc.getTagNames(snippet.Tags())
+	tagNames := resolveTagNames(snippet.Tags(), tagMap)
 
 	fmt.Println("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Printf("📝 %s\n", snippet.Title())
@@ -164,6 +178,7 @@ func (sc *SnippetCommand) show(args []string) {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
 
+// create creates a new snippet using an interactive form.
 func (sc *SnippetCommand) create() {
 	formData := sc.promptForSnippet(nil)
 	if formData == nil {
@@ -187,15 +202,15 @@ func (sc *SnippetCommand) create() {
 		snippet.SetDescription(formData.description)
 	}
 
-	err = sc.repos.Snippets.Create(snippet)
-	if err != nil {
+	if err := sc.repos.Snippets.Create(snippet); err != nil {
 		PrintError(fmt.Sprintf("failed to save snippet: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Successfully created snippet '%s' (ID: %d)", formData.title, snippet.ID()))
+	PrintSuccess(fmt.Sprintf("Created snippet '%s' (ID: %d)", formData.title, snippet.ID()))
 }
 
+// update updates an existing snippet using an interactive form.
 func (sc *SnippetCommand) update(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip snippet update <id>'")
@@ -204,12 +219,12 @@ func (sc *SnippetCommand) update(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		PrintError(fmt.Sprintf("Validation failed. 'id' must be a number: %v", err))
+		PrintError(fmt.Sprintf("Invalid ID '%s'. ID must be a number", args[0]))
 		return
 	}
 
 	snippet, err := sc.repos.Snippets.FindByID(id)
-	if errors.Is(err, domain.ErrNotFound) {
+	if errors.Is(err, storage.ErrNotFound) {
 		PrintError(fmt.Sprintf("Snippet with ID %d not found", id))
 		return
 	}
@@ -241,7 +256,7 @@ func (sc *SnippetCommand) update(args []string) {
 	snippet.SetCategory(formData.categoryID)
 	snippet.SetDescription(formData.description)
 
-	// Update tags
+	// Update tags - remove all existing, then add new ones
 	for _, existingTag := range snippet.Tags() {
 		snippet.RemoveTag(existingTag)
 	}
@@ -249,15 +264,15 @@ func (sc *SnippetCommand) update(args []string) {
 		snippet.AddTag(tagID)
 	}
 
-	err = sc.repos.Snippets.Update(snippet)
-	if err != nil {
+	if err := sc.repos.Snippets.Update(snippet); err != nil {
 		PrintError(fmt.Sprintf("failed to update snippet: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Successfully updated snippet '%s'", formData.title))
+	PrintSuccess(fmt.Sprintf("Updated snippet '%s' (ID: %d)", formData.title, id))
 }
 
+// delete removes a snippet after user confirmation.
 func (sc *SnippetCommand) delete(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'id'. Use 'snip snippet delete <id>'")
@@ -266,12 +281,12 @@ func (sc *SnippetCommand) delete(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		PrintError(fmt.Sprintf("Validation failed. 'id' must be a number: %v", err))
+		PrintError(fmt.Sprintf("Invalid ID '%s'. ID must be a number", args[0]))
 		return
 	}
 
 	snippet, err := sc.repos.Snippets.FindByID(id)
-	if errors.Is(err, domain.ErrNotFound) {
+	if errors.Is(err, storage.ErrNotFound) {
 		PrintError(fmt.Sprintf("Snippet with ID %d not found", id))
 		return
 	}
@@ -285,20 +300,20 @@ func (sc *SnippetCommand) delete(args []string) {
 	var response string
 	fmt.Scanln(&response)
 
-	if strings.ToLower(response) != "y" {
+	if strings.ToLower(strings.TrimSpace(response)) != "y" {
 		PrintInfo("Delete cancelled")
 		return
 	}
 
-	err = sc.repos.Snippets.Delete(id)
-	if err != nil {
-		PrintError(fmt.Sprintf("Delete failed, couldn't delete snippet: %v", err))
+	if err := sc.repos.Snippets.Delete(id); err != nil {
+		PrintError(fmt.Sprintf("Failed to delete snippet: %v", err))
 		return
 	}
 
-	PrintSuccess(fmt.Sprintf("Deleted snippet with id: '%v'", id))
+	PrintSuccess(fmt.Sprintf("Deleted snippet '%s' (ID: %d)", snippet.Title(), id))
 }
 
+// search searches snippets by keyword.
 func (sc *SnippetCommand) search(args []string) {
 	if len(args) == 0 {
 		PrintError("Missing required argument 'keyword'. Use 'snip snippet search <keyword>'")
@@ -320,15 +335,53 @@ func (sc *SnippetCommand) search(args []string) {
 	sc.displaySnippets(snippets)
 }
 
+// loadLookupMaps loads all categories and tags into maps for efficient lookups.
+// This prevents N+1 queries when displaying multiple snippets.
+func (sc *SnippetCommand) loadLookupMaps() (map[int]*domain.Category, map[int]*domain.Tag, error) {
+	categories, err := sc.repos.Categories.List()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load categories: %w", err)
+	}
+
+	tags, err := sc.repos.Tags.List()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load tags: %w", err)
+	}
+
+	// Build lookup maps
+	categoryMap := make(map[int]*domain.Category, len(categories))
+	for _, cat := range categories {
+		categoryMap[cat.ID()] = cat
+	}
+
+	tagMap := make(map[int]*domain.Tag, len(tags))
+	for _, tag := range tags {
+		tagMap[tag.ID()] = tag
+	}
+
+	return categoryMap, tagMap, nil
+}
+
+// getTagNames converts tag IDs to names by loading tags from the repository.
+// Returns ["N/A"] if no tags provided or none found.
 func (sc *SnippetCommand) getTagNames(tagIDs []int) []string {
 	if len(tagIDs) == 0 {
 		return []string{"N/A"}
 	}
 
+	tags, err := sc.repos.Tags.List()
+	if err != nil {
+		return []string{"N/A"}
+	}
+
+	tagMap := make(map[int]*domain.Tag, len(tags))
+	for _, tag := range tags {
+		tagMap[tag.ID()] = tag
+	}
+
 	names := make([]string, 0, len(tagIDs))
 	for _, tagID := range tagIDs {
-		tag, err := sc.repos.Tags.FindByID(tagID)
-		if err == nil && tag != nil {
+		if tag, ok := tagMap[tagID]; ok {
 			names = append(names, tag.Name())
 		}
 	}
@@ -340,21 +393,29 @@ func (sc *SnippetCommand) getTagNames(tagIDs []int) []string {
 	return names
 }
 
+// displaySnippets displays snippets in a formatted table.
+// Optimized to avoid N+1 queries by loading categories and tags once.
 func (sc *SnippetCommand) displaySnippets(snippets []*domain.Snippet) {
+	// Load all categories and tags once (O(1) instead of O(N))
+	categoryMap, tagMap, err := sc.loadLookupMaps()
+	if err != nil {
+		PrintError(fmt.Sprintf("Failed to load lookup data: %v", err))
+		return
+	}
+
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"ID", "Title", "Language", "Category", "Tags", "CreatedAt"})
+	t.AppendHeader(table.Row{"ID", "Title", "Language", "Category", "Tags", "Created"})
 
 	for _, snippet := range snippets {
 		categoryName := "N/A"
 		if snippet.CategoryID() > 0 {
-			category, err := sc.repos.Categories.FindByID(snippet.CategoryID())
-			if err == nil && category != nil {
-				categoryName = category.Name()
+			if cat, ok := categoryMap[snippet.CategoryID()]; ok {
+				categoryName = cat.Name()
 			}
 		}
 
-		tagNames := sc.getTagNames(snippet.Tags())
+		tagNames := resolveTagNames(snippet.Tags(), tagMap)
 
 		t.AppendRow(table.Row{
 			snippet.ID(),
@@ -370,7 +431,86 @@ func (sc *SnippetCommand) displaySnippets(snippets []*domain.Snippet) {
 	t.Render()
 }
 
-// Form models and helpers
+// resolveTagNames converts tag IDs to names using a pre-loaded map.
+// This is a helper function to avoid N+1 queries.
+func resolveTagNames(tagIDs []int, tagMap map[int]*domain.Tag) []string {
+	if len(tagIDs) == 0 {
+		return []string{"N/A"}
+	}
+
+	names := make([]string, 0, len(tagIDs))
+	for _, tagID := range tagIDs {
+		if tag, ok := tagMap[tagID]; ok {
+			names = append(names, tag.Name())
+		}
+	}
+
+	if len(names) == 0 {
+		return []string{"N/A"}
+	}
+
+	return names
+}
+
+// promptForSnippet displays an interactive form for snippet input.
+func (sc *SnippetCommand) promptForSnippet(existing *domain.Snippet) *snippetFormData {
+	p := tea.NewProgram(newSnippetFormModel(existing))
+	finalModel, err := p.Run()
+	if err != nil {
+		PrintError(fmt.Sprintf("Failed to run form: %v", err))
+		return nil
+	}
+
+	m := finalModel.(snippetFormModel)
+	if m.cancelled {
+		return nil
+	}
+
+	title := strings.TrimSpace(m.inputs[0].Value())
+	language := strings.TrimSpace(m.inputs[1].Value())
+	description := strings.TrimSpace(m.inputs[4].Value())
+	code := strings.TrimSpace(m.codeArea.Value())
+
+	if title == "" || language == "" || code == "" {
+		PrintError("Title, language, and code are required fields")
+		return nil
+	}
+
+	categoryID := 0
+	if catStr := strings.TrimSpace(m.inputs[2].Value()); catStr != "" {
+		var err error
+		categoryID, err = strconv.Atoi(catStr)
+		if err != nil {
+			PrintError("Category ID must be a number")
+			return nil
+		}
+	}
+
+	var tags []int
+	if tagStr := strings.TrimSpace(m.inputs[3].Value()); tagStr != "" {
+		tagParts := strings.Split(tagStr, ",")
+		tags = make([]int, 0, len(tagParts))
+		for _, part := range tagParts {
+			tagID, err := strconv.Atoi(strings.TrimSpace(part))
+			if err != nil {
+				PrintError("Tag IDs must be comma-separated numbers")
+				return nil
+			}
+			tags = append(tags, tagID)
+		}
+	}
+
+	return &snippetFormData{
+		title:       title,
+		language:    language,
+		categoryID:  categoryID,
+		tags:        tags,
+		description: description,
+		code:        code,
+	}
+}
+
+// snippetFormData holds the data collected from the snippet form.
 type snippetFormData struct {
 	title       string
 	language    string
@@ -380,6 +520,7 @@ type snippetFormData struct {
 	code        string
 }
 
+// snippetFormModel is the Bubble Tea model for the snippet form.
 type snippetFormModel struct {
 	inputs    []textinput.Model
 	codeArea  textarea.Model
@@ -387,34 +528,16 @@ type snippetFormModel struct {
 	cancelled bool
 }
 
+// newSnippetFormModel creates a new snippet form model.
 func newSnippetFormModel(existing *domain.Snippet) snippetFormModel {
 	inputs := make([]textinput.Model, 5)
 
-	inputs[0] = textinput.New()
-	inputs[0].Placeholder = "e.g., Binary Search Implementation"
-	inputs[0].CharLimit = 100
-	inputs[0].Width = 50
-	inputs[0].Focus()
-
-	inputs[1] = textinput.New()
-	inputs[1].Placeholder = "e.g., go, python, javascript"
-	inputs[1].CharLimit = 50
-	inputs[1].Width = 50
-
-	inputs[2] = textinput.New()
-	inputs[2].Placeholder = "e.g., 1 (or leave empty)"
-	inputs[2].CharLimit = 10
-	inputs[2].Width = 50
-
-	inputs[3] = textinput.New()
-	inputs[3].Placeholder = "e.g., 1,2,3 (comma-separated IDs)"
-	inputs[3].CharLimit = 100
-	inputs[3].Width = 50
-
-	inputs[4] = textinput.New()
-	inputs[4].Placeholder = "Brief description of the snippet"
-	inputs[4].CharLimit = 200
-	inputs[4].Width = 50
+	// Use helper function to create inputs - eliminates duplication
+	inputs[0] = createFocusedTextInput("e.g., Binary Search Implementation", 100, 50)
+	inputs[1] = createTextInput("e.g., go, python, javascript", 50, 50)
+	inputs[2] = createTextInput("e.g., 1 (or leave empty)", 10, 50)
+	inputs[3] = createTextInput("e.g., 1,2,3 (comma-separated IDs)", 100, 50)
+	inputs[4] = createTextInput("Brief description of the snippet", 200, 50)
 
 	codeArea := textarea.New()
 	codeArea.Placeholder = "Paste or type your code here..."
@@ -446,10 +569,12 @@ func newSnippetFormModel(existing *domain.Snippet) snippetFormModel {
 	}
 }
 
+// Init initializes the snippet form model.
 func (m snippetFormModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+// Update handles input events for the snippet form model.
 func (m snippetFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -505,6 +630,7 @@ func (m snippetFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View renders the snippet form model.
 func (m snippetFormModel) View() string {
 	return fmt.Sprintf(
 		"\n📝 Snippet Form\n\n"+
@@ -522,60 +648,4 @@ func (m snippetFormModel) View() string {
 		m.inputs[4].View(),
 		m.codeArea.View(),
 	)
-}
-
-func (sc *SnippetCommand) promptForSnippet(existing *domain.Snippet) *snippetFormData {
-	p := tea.NewProgram(newSnippetFormModel(existing))
-	finalModel, err := p.Run()
-	if err != nil {
-		PrintError(fmt.Sprintf("Failed to run form: %v", err))
-		return nil
-	}
-
-	m := finalModel.(snippetFormModel)
-	if m.cancelled {
-		return nil
-	}
-
-	title := strings.TrimSpace(m.inputs[0].Value())
-	language := strings.TrimSpace(m.inputs[1].Value())
-	description := strings.TrimSpace(m.inputs[4].Value())
-	code := strings.TrimSpace(m.codeArea.Value())
-
-	if title == "" || language == "" || code == "" {
-		PrintError("Title, language, and code are required fields")
-		return nil
-	}
-
-	categoryID := 0
-	if catStr := strings.TrimSpace(m.inputs[2].Value()); catStr != "" {
-		categoryID, err = strconv.Atoi(catStr)
-		if err != nil {
-			PrintError("Category ID must be a number")
-			return nil
-		}
-	}
-
-	var tags []int
-	if tagStr := strings.TrimSpace(m.inputs[3].Value()); tagStr != "" {
-		tagParts := strings.Split(tagStr, ",")
-		tags = make([]int, 0, len(tagParts))
-		for _, part := range tagParts {
-			tagID, err := strconv.Atoi(strings.TrimSpace(part))
-			if err != nil {
-				PrintError("Tag IDs must be comma-separated numbers")
-				return nil
-			}
-			tags = append(tags, tagID)
-		}
-	}
-
-	return &snippetFormData{
-		title:       title,
-		language:    language,
-		categoryID:  categoryID,
-		tags:        tags,
-		description: description,
-		code:        code,
-	}
 }

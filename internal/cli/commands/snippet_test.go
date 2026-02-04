@@ -1,3 +1,4 @@
+// Package commands provides the CLI command handlers for SNIP.
 package commands
 
 import (
@@ -6,7 +7,22 @@ import (
 	"github.com/7-Dany/snip/internal/domain"
 )
 
-func TestSnippetCommandList(t *testing.T) {
+func TestNewSnippetCommand(t *testing.T) {
+	t.Run("creates snippet command with repos", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		if sc == nil {
+			t.Fatal("NewSnippetCommand returned nil")
+		}
+
+		if sc.repos == nil {
+			t.Error("repos is nil")
+		}
+	})
+}
+
+func TestSnippetCommand_list(t *testing.T) {
 	t.Run("lists all snippets", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -52,6 +68,13 @@ func TestSnippetCommandList(t *testing.T) {
 		sc.list([]string{"--category", "1"})
 	})
 
+	t.Run("validates category ID is a number", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		sc.list([]string{"--category", "not-a-number"})
+	})
+
 	t.Run("filters by tag", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -66,6 +89,13 @@ func TestSnippetCommandList(t *testing.T) {
 		sc.list([]string{"--tag", "1"})
 	})
 
+	t.Run("validates tag ID is a number", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		sc.list([]string{"--tag", "not-a-number"})
+	})
+
 	t.Run("filters by language", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -77,9 +107,18 @@ func TestSnippetCommandList(t *testing.T) {
 
 		sc.list([]string{"--language", "go"})
 	})
+
+	t.Run("validates flag has value", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		sc.list([]string{"--category"})
+		sc.list([]string{"--tag"})
+		sc.list([]string{"--language"})
+	})
 }
 
-func TestSnippetCommandShow(t *testing.T) {
+func TestSnippetCommand_show(t *testing.T) {
 	t.Run("validates ID is required", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -107,9 +146,27 @@ func TestSnippetCommandShow(t *testing.T) {
 
 		sc.show([]string{"1"})
 	})
+
+	t.Run("shows snippet with category and tags", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		cat, _ := domain.NewCategory("algorithms")
+		repos.Categories.Create(cat)
+
+		tag, _ := domain.NewTag("sorting")
+		repos.Tags.Create(tag)
+
+		snip, _ := domain.NewSnippet("Test Snippet", "go", "func test() {}")
+		snip.SetCategory(cat.ID())
+		snip.AddTag(tag.ID())
+		repos.Snippets.Create(snip)
+
+		sc.show([]string{"1"})
+	})
 }
 
-func TestSnippetCommandDelete(t *testing.T) {
+func TestSnippetCommand_delete(t *testing.T) {
 	t.Run("validates ID is required", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -134,7 +191,7 @@ func TestSnippetCommandDelete(t *testing.T) {
 	})
 }
 
-func TestSnippetCommandSearch(t *testing.T) {
+func TestSnippetCommand_search(t *testing.T) {
 	t.Run("validates keyword is required", func(t *testing.T) {
 		repos := setupTestRepos(t)
 		sc := NewSnippetCommand(repos)
@@ -158,7 +215,7 @@ func TestSnippetCommandSearch(t *testing.T) {
 	})
 }
 
-func TestSnippetCommandManage(t *testing.T) {
+func TestSnippetCommand_manage(t *testing.T) {
 	repos := setupTestRepos(t)
 	sc := NewSnippetCommand(repos)
 
@@ -174,8 +231,54 @@ func TestSnippetCommandManage(t *testing.T) {
 		sc.manage([]string{"list"})
 	})
 
+	t.Run("routes to show command", func(t *testing.T) {
+		sc.manage([]string{"show", "1"})
+	})
+
+	t.Run("routes to search command", func(t *testing.T) {
+		sc.manage([]string{"search", "test"})
+	})
+
 	t.Run("handles case insensitive commands", func(t *testing.T) {
 		sc.manage([]string{"LIST"})
 		sc.manage([]string{"List"})
+		sc.manage([]string{"SEARCH", "test"})
+	})
+}
+
+func TestSnippetCommand_getTagNames(t *testing.T) {
+	t.Run("returns N/A for empty tag list", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		names := sc.getTagNames([]int{})
+		if len(names) != 1 || names[0] != "N/A" {
+			t.Errorf("Expected [N/A], got %v", names)
+		}
+	})
+
+	t.Run("returns tag names for valid IDs", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		tag1, _ := domain.NewTag("performance")
+		tag2, _ := domain.NewTag("security")
+		repos.Tags.Create(tag1)
+		repos.Tags.Create(tag2)
+
+		names := sc.getTagNames([]int{1, 2})
+		if len(names) != 2 {
+			t.Errorf("Expected 2 tag names, got %d", len(names))
+		}
+	})
+
+	t.Run("returns N/A when no valid tags found", func(t *testing.T) {
+		repos := setupTestRepos(t)
+		sc := NewSnippetCommand(repos)
+
+		names := sc.getTagNames([]int{999})
+		if len(names) != 1 || names[0] != "N/A" {
+			t.Errorf("Expected [N/A], got %v", names)
+		}
 	})
 }
