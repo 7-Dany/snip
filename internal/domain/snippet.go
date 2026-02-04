@@ -1,15 +1,15 @@
-// Package domain contains the core business logic and entities for the snippet manager.
+// Package domain contains the core business entities and logic for the snippet manager.
 package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"time"
 )
 
 // Snippet represents a code snippet with metadata including title, language,
 // code content, optional description, category, and tags.
-// All fields are unexported to maintain encapsulation and enforce validation.
 type Snippet struct {
 	id          int
 	title       string
@@ -22,9 +22,8 @@ type Snippet struct {
 	updatedAt   time.Time
 }
 
-// NewSnippet creates a new Snippet with the given title, language, and code.
-// It validates that all required fields are non-empty and initializes timestamps.
-// Returns ErrEmptyTitle, ErrEmptyLanguage, or ErrEmptyCode if validation fails.
+// NewSnippet creates and returns a new Snippet with the given title, language, and code.
+// It returns ErrEmptyTitle, ErrEmptyLanguage, or ErrEmptyCode if validation fails.
 func NewSnippet(title, language, code string) (*Snippet, error) {
 	if title == "" {
 		return nil, ErrEmptyTitle
@@ -39,13 +38,13 @@ func NewSnippet(title, language, code string) (*Snippet, error) {
 		title:     title,
 		language:  language,
 		code:      code,
+		tags:      []int{},
 		createdAt: time.Now(),
 		updatedAt: time.Now(),
 	}, nil
 }
 
 // ID returns the snippet's unique identifier.
-// The ID is 0 until set by the storage layer.
 func (s *Snippet) ID() int { return s.id }
 
 // Title returns the snippet's title.
@@ -63,48 +62,51 @@ func (s *Snippet) Description() string { return s.description }
 // CategoryID returns the ID of the snippet's category, or 0 if uncategorized.
 func (s *Snippet) CategoryID() int { return s.categoryID }
 
-// CreatedAt returns when the snippet was created.
+// CreatedAt returns the snippet's creation time.
 func (s *Snippet) CreatedAt() time.Time { return s.createdAt }
 
-// UpdatedAt returns when the snippet was last modified.
+// UpdatedAt returns the snippet's last modification time.
 func (s *Snippet) UpdatedAt() time.Time { return s.updatedAt }
 
 // Tags returns a copy of the snippet's tag IDs.
 // Modifying the returned slice does not affect the snippet's internal tags.
 func (s *Snippet) Tags() []int {
+	if s.tags == nil {
+		return []int{}
+	}
 	tags := make([]int, len(s.tags))
 	copy(tags, s.tags)
 	return tags
 }
 
-// SetTitle updates the snippet's title and modification timestamp, if empty it returns ErrEmptyTitle.
+// SetTitle updates the snippet's title and modification timestamp.
+// It returns ErrEmptyTitle if title is empty.
 func (s *Snippet) SetTitle(title string) error {
 	if title == "" {
 		return ErrEmptyTitle
 	}
-
 	s.title = title
 	s.updatedAt = time.Now()
 	return nil
 }
 
-// SetLanguage updates the snippet's langauge and modification timestamp, if empty it returns ErrEmptyLanguage.
+// SetLanguage updates the snippet's language and modification timestamp.
+// It returns ErrEmptyLanguage if language is empty.
 func (s *Snippet) SetLanguage(language string) error {
 	if language == "" {
 		return ErrEmptyLanguage
 	}
-
 	s.language = language
 	s.updatedAt = time.Now()
 	return nil
 }
 
-// SetCode updates the snippet's code and modification timestamp, if empty it returns ErrEmptyCode.
+// SetCode updates the snippet's code and modification timestamp.
+// It returns ErrEmptyCode if code is empty.
 func (s *Snippet) SetCode(code string) error {
 	if code == "" {
 		return ErrEmptyCode
 	}
-
 	s.code = code
 	s.updatedAt = time.Now()
 	return nil
@@ -124,7 +126,6 @@ func (s *Snippet) SetCategory(catID int) {
 
 // AddTag adds a tag ID to the snippet if not already present.
 // Duplicate tag IDs are silently ignored.
-// Updates the snippet's modification timestamp.
 func (s *Snippet) AddTag(tagID int) {
 	if slices.Contains(s.tags, tagID) {
 		return
@@ -135,7 +136,6 @@ func (s *Snippet) AddTag(tagID int) {
 
 // RemoveTag removes a tag ID from the snippet.
 // If the tag ID is not present, this is a no-op.
-// Updates the snippet's modification timestamp.
 func (s *Snippet) RemoveTag(tagID int) {
 	for i, t := range s.tags {
 		if t == tagID {
@@ -152,21 +152,34 @@ func (s *Snippet) HasTag(tagID int) bool {
 }
 
 // SetID sets the snippet's unique identifier.
-// This method is intended for use by the storage layer when persisting snippets.
+// This should only be called by the storage layer.
 func (s *Snippet) SetID(id int) {
 	s.id = id
 }
 
-// MarshalJSON implements the json.Marshaler interface for Snippet.
-// This allows Snippets with unexported fields to be serialized to JSON
-// while maintaining encapsulation and preventing direct field access.
-//
-// Design: Creates anonymous struct with exported fields for marshaling
-//
-// Returns:
-//
-//	[]byte - JSON representation of the snippet
-//	error  - Marshaling errors (rare, usually nil)
+// String returns a string representation of the snippet.
+func (s *Snippet) String() string {
+	return fmt.Sprintf("Snippet{id=%d, title=%q, language=%q}", s.id, s.title, s.language)
+}
+
+// Equal returns true if this snippet has the same data as other.
+// Two snippets are considered equal if all their fields match.
+func (s *Snippet) Equal(other *Snippet) bool {
+	if other == nil {
+		return false
+	}
+	return s.id == other.id &&
+		s.title == other.title &&
+		s.language == other.language &&
+		s.code == other.code &&
+		s.description == other.description &&
+		s.categoryID == other.categoryID &&
+		slices.Equal(s.tags, other.tags) &&
+		s.createdAt.Equal(other.createdAt) &&
+		s.updatedAt.Equal(other.updatedAt)
+}
+
+// MarshalJSON implements json.Marshaler.
 func (s *Snippet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		ID          int       `json:"id"`
@@ -191,22 +204,7 @@ func (s *Snippet) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface for Snippet.
-// This allows JSON data to be deserialized into Snippets with unexported fields
-// while maintaining encapsulation.
-//
-// Design: Uses anonymous struct to unmarshal, then copies to unexported fields
-//
-// Parameters:
-//
-//	data - JSON bytes to unmarshal
-//
-// Returns:
-//
-//	error - Unmarshal errors (invalid JSON, type mismatches, etc.)
-//
-// Note: This bypasses validation in NewSnippet() and setter methods.
-// The storage layer is trusted to only load valid data that was previously saved.
+// UnmarshalJSON implements json.Unmarshaler.
 func (s *Snippet) UnmarshalJSON(data []byte) error {
 	aux := &struct {
 		ID          int       `json:"id"`
@@ -222,6 +220,18 @@ func (s *Snippet) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
+
+	// Validate loaded data
+	if aux.Title == "" {
+		return ErrEmptyTitle
+	}
+	if aux.Language == "" {
+		return ErrEmptyLanguage
+	}
+	if aux.Code == "" {
+		return ErrEmptyCode
+	}
+
 	s.id = aux.ID
 	s.title = aux.Title
 	s.language = aux.Language
@@ -229,6 +239,9 @@ func (s *Snippet) UnmarshalJSON(data []byte) error {
 	s.description = aux.Description
 	s.categoryID = aux.CategoryID
 	s.tags = aux.Tags
+	if s.tags == nil {
+		s.tags = []int{}
+	}
 	s.createdAt = aux.CreatedAt
 	s.updatedAt = aux.UpdatedAt
 	return nil
