@@ -407,7 +407,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - GitHub: [@7-Dany](https://github.com/7-Dany)
 - Project Link: [https://github.com/7-Dany/snip](https://github.com/7-Dany/snip)
-
----
-
-⭐ If you find this project useful, please consider giving it a star!
