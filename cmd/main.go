@@ -38,8 +38,8 @@ func Run() {
 	// Otherwise, launch TUI
 	homeTab := tui.NewHomeTab()
 	categoriesTab := tui.NewCategoriesTab(repos)
-	tagsTab := tui.NewTagsTab(repos)         // You'll need to implement this
-	snippetsTab := tui.NewSnippetsTab(repos) // You'll need to implement this
+	tagsTab := tui.NewTagsTab(repos)
+	snippetsTab := tui.NewSnippetsTab(repos)
 
 	tabs, err := components.NewTabs(
 		[]string{"Home", "Categories", "Tags", "Snippets"},
