@@ -14,8 +14,8 @@ func newTagRepository(s *store) *tagRepository {
 
 // List returns all tags.
 func (r *tagRepository) List() ([]*domain.Tag, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	result := make([]*domain.Tag, len(r.store.tags))
 	copy(result, r.store.tags)
@@ -24,8 +24,8 @@ func (r *tagRepository) List() ([]*domain.Tag, error) {
 
 // FindByID finds a tag by its ID.
 func (r *tagRepository) FindByID(id int) (*domain.Tag, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	for _, tag := range r.store.tags {
 		if tag.ID() == id {
@@ -37,8 +37,8 @@ func (r *tagRepository) FindByID(id int) (*domain.Tag, error) {
 
 // FindByName finds a tag by its name.
 func (r *tagRepository) FindByName(name string) (*domain.Tag, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	for _, tag := range r.store.tags {
 		if tag.Name() == name {

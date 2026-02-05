@@ -20,7 +20,8 @@ var (
 // auto-incrementing IDs for snippets, categories, and tags.
 type store struct {
 	filepath string
-	mu       sync.RWMutex
+	mu       sync.RWMutex // Protects data structures
+	idMu     sync.Mutex   // Protects ID counters (separate to avoid deadlock)
 
 	snippets   []*domain.Snippet
 	categories []*domain.Category
@@ -57,7 +58,7 @@ func newStore(filepath string) *store {
 // save persists all data to the JSON file atomically.
 func (s *store) save() error {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.idMu.Lock()
 
 	d := data{
 		Snippets:       s.snippets,
@@ -67,6 +68,9 @@ func (s *store) save() error {
 		NextCategoryID: s.nextCategoryID,
 		NextTagID:      s.nextTagID,
 	}
+
+	s.idMu.Unlock()
+	s.mu.RUnlock()
 
 	jsonData, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
@@ -104,9 +108,12 @@ func (s *store) load() error {
 	s.snippets = d.Snippets
 	s.categories = d.Categories
 	s.tags = d.Tags
+
+	s.idMu.Lock()
 	s.nextSnippetID = d.NextSnippetID
 	s.nextCategoryID = d.NextCategoryID
 	s.nextTagID = d.NextTagID
+	s.idMu.Unlock()
 
 	if s.snippets == nil {
 		s.snippets = make([]*domain.Snippet, 0)
@@ -122,21 +129,33 @@ func (s *store) load() error {
 }
 
 // nextSnippetIDAndIncrement returns the next snippet ID and increments the counter.
+// This method is thread-safe and can be called concurrently.
 func (s *store) nextSnippetIDAndIncrement() int {
+	s.idMu.Lock()
+	defer s.idMu.Unlock()
+
 	id := s.nextSnippetID
 	s.nextSnippetID++
 	return id
 }
 
 // nextCategoryIDAndIncrement returns the next category ID and increments the counter.
+// This method is thread-safe and can be called concurrently.
 func (s *store) nextCategoryIDAndIncrement() int {
+	s.idMu.Lock()
+	defer s.idMu.Unlock()
+
 	id := s.nextCategoryID
 	s.nextCategoryID++
 	return id
 }
 
 // nextTagIDAndIncrement returns the next tag ID and increments the counter.
+// This method is thread-safe and can be called concurrently.
 func (s *store) nextTagIDAndIncrement() int {
+	s.idMu.Lock()
+	defer s.idMu.Unlock()
+
 	id := s.nextTagID
 	s.nextTagID++
 	return id

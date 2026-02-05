@@ -14,8 +14,8 @@ func newCategoryRepository(s *store) *categoryRepository {
 
 // List returns all categories.
 func (r *categoryRepository) List() ([]*domain.Category, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	result := make([]*domain.Category, len(r.store.categories))
 	copy(result, r.store.categories)
@@ -24,8 +24,8 @@ func (r *categoryRepository) List() ([]*domain.Category, error) {
 
 // FindByID finds a category by its ID.
 func (r *categoryRepository) FindByID(id int) (*domain.Category, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	for _, category := range r.store.categories {
 		if category.ID() == id {
@@ -37,8 +37,8 @@ func (r *categoryRepository) FindByID(id int) (*domain.Category, error) {
 
 // FindByName finds a category by its name.
 func (r *categoryRepository) FindByName(name string) (*domain.Category, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	for _, category := range r.store.categories {
 		if category.Name() == name {

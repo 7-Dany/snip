@@ -18,8 +18,8 @@ func newSnippetRepository(s *store) *snippetRepository {
 
 // List returns all snippets.
 func (r *snippetRepository) List() ([]*domain.Snippet, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	result := make([]*domain.Snippet, len(r.store.snippets))
 	copy(result, r.store.snippets)
@@ -28,8 +28,8 @@ func (r *snippetRepository) List() ([]*domain.Snippet, error) {
 
 // FindByID finds a snippet by its ID.
 func (r *snippetRepository) FindByID(id int) (*domain.Snippet, error) {
-	r.store.mu.RLock()
-	defer r.store.mu.RUnlock()
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
 
 	for _, snippet := range r.store.snippets {
 		if snippet.ID() == id {

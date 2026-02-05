@@ -25,8 +25,8 @@ func (idx *searchIndex) search(query string) []*domain.Snippet {
 		return nil
 	}
 
-	idx.store.mu.RLock()
-	defer idx.store.mu.RUnlock()
+	idx.store.mu.Lock()
+	defer idx.store.mu.Unlock()
 
 	query = strings.ToLower(query)
 	results := make([]*domain.Snippet, 0)
@@ -55,8 +55,8 @@ func (idx *searchIndex) findByLanguage(language string) []*domain.Snippet {
 		return nil
 	}
 
-	idx.store.mu.RLock()
-	defer idx.store.mu.RUnlock()
+	idx.store.mu.Lock()
+	defer idx.store.mu.Unlock()
 
 	language = strings.ToLower(language)
 	results := make([]*domain.Snippet, 0)
@@ -72,8 +72,8 @@ func (idx *searchIndex) findByLanguage(language string) []*domain.Snippet {
 
 // findByCategory finds all snippets in the given category.
 func (idx *searchIndex) findByCategory(categoryID int) []*domain.Snippet {
-	idx.store.mu.RLock()
-	defer idx.store.mu.RUnlock()
+	idx.store.mu.Lock()
+	defer idx.store.mu.Unlock()
 
 	results := make([]*domain.Snippet, 0)
 
@@ -88,8 +88,8 @@ func (idx *searchIndex) findByCategory(categoryID int) []*domain.Snippet {
 
 // findByTag finds all snippets with the given tag.
 func (idx *searchIndex) findByTag(tagID int) []*domain.Snippet {
-	idx.store.mu.RLock()
-	defer idx.store.mu.RUnlock()
+	idx.store.mu.Lock()
+	defer idx.store.mu.Unlock()
 
 	results := make([]*domain.Snippet, 0)
 
