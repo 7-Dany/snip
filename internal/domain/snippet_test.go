@@ -307,6 +307,44 @@ func TestSnippet_SetCategory(t *testing.T) {
 }
 
 func TestSnippet_Tags(t *testing.T) {
+	t.Run("nil tags returns empty slice", func(t *testing.T) {
+		// Create a snippet with tags set to nil directly
+		// This can happen during JSON unmarshaling in some edge cases
+		snippet := &Snippet{
+			id:       1,
+			title:    "test",
+			language: "go",
+			code:     "code",
+			tags:     nil, // Explicitly set to nil
+		}
+
+		tags := snippet.Tags()
+
+		if tags == nil {
+			t.Error("Tags() should return empty slice, not nil")
+		}
+
+		if len(tags) != 0 {
+			t.Errorf("expected empty slice, got %d elements", len(tags))
+		}
+	})
+
+	t.Run("Tags returns empty slice for new snippet", func(t *testing.T) {
+		// NewSnippet initializes tags to []int{}, but we want to test
+		// the nil check branch
+		snippet := mustCreateSnippet(t, "title", "go", "code")
+
+		// Verify it has empty tags (not nil)
+		tags := snippet.Tags()
+		if tags == nil {
+			t.Error("Tags should not be nil for new snippet")
+		}
+
+		if len(tags) != 0 {
+			t.Errorf("expected 0 tags for new snippet, got %d", len(tags))
+		}
+	})
+
 	t.Run("Tags returns a copy", func(t *testing.T) {
 		snippet := mustCreateSnippet(t, "title", "go", "code")
 		snippet.AddTag(1)
