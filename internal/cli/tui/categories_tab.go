@@ -30,7 +30,7 @@ type CategoriesTab struct {
 
 	// Components
 	tableView     components.SearchableTableView
-	snippetsTable components.TableView
+	snippetsTable components.SearchableTableView
 	menuView      components.MenuView
 	helpView      components.HelpView
 	formView      components.FormView
@@ -55,7 +55,7 @@ func NewCategoriesTab(repos *storage.Repositories) *CategoriesTab {
 		10,
 	)
 
-	snippetsTable := components.NewTableView(
+	snippetsTable := components.NewSearchableTableView(
 		[]table.Column{
 			{Title: "ID", Width: 8},
 			{Title: "Title", Width: 30},

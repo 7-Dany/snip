@@ -18,7 +18,7 @@ type TagsTab struct {
 
 	// Reusable components
 	tableView     components.SearchableTableView
-	snippetsTable components.TableView
+	snippetsTable components.SearchableTableView
 	menuView      components.MenuView
 	helpView      components.HelpView
 	formView      components.FormView
@@ -43,7 +43,7 @@ func NewTagsTab(repos *storage.Repositories) *TagsTab {
 		10,
 	)
 
-	snippetsTable := components.NewTableView(
+	snippetsTable := components.NewSearchableTableView(
 		[]table.Column{
 			{Title: "ID", Width: 8},
 			{Title: "Title", Width: 30},
