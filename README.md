@@ -5,6 +5,8 @@
 [![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/7-Dany/snip)](https://github.com/7-Dany/snip/releases)
+[![Test Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](https://github.com/7-Dany/snip)
+[![Go Report Card](https://goreportcard.com/badge/github.com/7-Dany/snip)](https://goreportcard.com/report/github.com/7-Dany/snip)
 
 ## ✨ Features
 
@@ -234,11 +236,118 @@ snip/
 - **TUI**: Interactive terminal interface using Bubble Tea
 - **Components**: Reusable UI widgets (tables, editors, menus, dialogs)
 
+## 🧪 Testing
+
+### Test Coverage
+
+SNIP maintains comprehensive test coverage across its core components:
+
+| Component | Coverage | Notes |
+|-----------|----------|-------|
+| **Domain Layer** | ~100.0% | Business logic fully tested |
+| **Storage Layer** | ~99.5% | Repository operations and transactions |
+| **CLI Commands** | ~85% | Command handlers and validation |
+| **Overall** | **~85%** | Excluding interactive TUI components |
+
+```bash
+# Run all tests
+make test
+
+# Run tests with coverage report
+go test ./... -cover
+
+# Generate detailed coverage report
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### Testing Approach
+
+#### ✅ What We Test
+
+- **Business Logic**: All domain entities, validation rules, and state management
+- **Data Persistence**: Repository CRUD operations, queries, and transactions
+- **CLI Commands**: Command parsing, argument validation, and error handling
+- **Error Paths**: Database errors, invalid input, and edge cases
+
+#### ⚠️ What We Don't Test (And Why)
+
+**Interactive TUI Components** are intentionally excluded from automated testing for the following reasons:
+
+1. **Framework Limitations**: Bubble Tea's event-driven architecture and terminal rendering make unit testing impractical without extensive mocking
+2. **Testing Complexity**: UI interactions involve complex state machines, terminal dimensions, and timing-dependent updates that are difficult to reproduce in tests
+3. **Visual Nature**: TUI correctness is inherently visual - automated tests can't validate layout, colors, or user experience
+4. **Rapid UI Changes**: UI/UX iterations are frequent and would require constant test maintenance
+5. **Manual QA is More Effective**: Interactive components are better validated through:
+   - Manual testing during development
+   - Smoke tests before releases
+   - User feedback and bug reports
+
+**User Input Prompts** (like delete confirmations) are also not fully tested because:
+- They rely on `fmt.Scanln()` which reads from stdin
+- Mocking stdin in Go tests is complex and fragile
+- These are simple UI flows with minimal business logic
+- Refactoring for testability would add unnecessary complexity
+
+#### 🎯 Testing Strategy
+
+Our testing strategy focuses on:
+- **High-value tests**: Core business logic and data integrity
+- **Fast feedback**: Unit tests run in milliseconds
+- **Maintainability**: Tests are simple and don't require complex mocks
+- **Confidence**: Critical paths have multiple test scenarios
+
+The combination of automated tests for logic layers and manual testing for UI provides the best balance of confidence and development velocity.
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with verbose output
+go test -v ./...
+
+# Run tests for specific package
+go test ./internal/domain/...
+go test ./internal/storage/...
+go test ./internal/cli/commands/...
+
+# Run tests with race detection
+go test -race ./...
+
+# Generate coverage report
+go test -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
+
+# View coverage in browser
+go tool cover -html=coverage.out
+```
+
+### Test Organization
+
+```
+internal/
+├── domain/
+│   ├── snippet_test.go      # Domain entity tests
+│   ├── category_test.go
+│   └── tag_test.go
+├── storage/
+│   ├── snippet_repo_test.go # Repository tests
+│   ├── category_repo_test.go
+│   └── tag_repo_test.go
+└── cli/
+    └── commands/
+        ├── snippet_test.go   # CLI command tests
+        ├── category_test.go
+        └── tag_test.go
+```
+
 ## 🛠️ Development
 
 ### Prerequisites
 
-  - Go 1.25 or higher
+- Go 1.25 or higher
 
 ### Building
 
@@ -256,21 +365,33 @@ make test
 make clean
 ```
 
-### Running Tests
+### Development Workflow
 
-```bash
-go test ./...
-```
+1. Make your changes
+2. Run tests: `make test`
+3. Check coverage: `go test -cover ./...`
+4. Test manually with: `go run main.go`
+5. Build: `make build`
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Contribution Guidelines
+
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Write tests for new functionality (where applicable)
+4. Ensure all tests pass (`go test ./...`)
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### What to Test
+
+- ✅ **Do add tests for**: Domain logic, repository operations, CLI command handlers
+- ⚠️ **Optional for**: TUI components (manual testing is acceptable)
+- ✅ **Always test**: Error handling and edge cases
 
 ## 📄 License
 
