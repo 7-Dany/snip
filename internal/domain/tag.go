@@ -21,10 +21,11 @@ func NewTag(name string) (*Tag, error) {
 	if name == "" {
 		return nil, ErrEmptyName
 	}
+	now := time.Now()
 	return &Tag{
 		name:      name,
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
+		createdAt: now,
+		updatedAt: now,
 	}, nil
 }
 

@@ -34,13 +34,14 @@ func NewSnippet(title, language, code string) (*Snippet, error) {
 	if code == "" {
 		return nil, ErrEmptyCode
 	}
+	now := time.Now()
 	return &Snippet{
 		title:     title,
 		language:  language,
 		code:      code,
 		tags:      []int{},
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
+		createdAt: now,
+		updatedAt: now,
 	}, nil
 }
 

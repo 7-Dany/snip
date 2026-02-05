@@ -21,10 +21,11 @@ func NewCategory(name string) (*Category, error) {
 	if name == "" {
 		return nil, ErrEmptyName
 	}
+	now := time.Now()
 	return &Category{
 		name:      name,
-		createdAt: time.Now(),
-		updatedAt: time.Now(),
+		createdAt: now,
+		updatedAt: now,
 	}, nil
 }
 
