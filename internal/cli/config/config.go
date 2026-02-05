@@ -28,6 +28,7 @@ func LoadConfig() (*Config, error) {
 func loadConfigFromDir(homeDir string) (*Config, error) {
 	snipPath := filepath.Join(homeDir, ".snip")
 
+	// Note: MkdirAll error is not tested - would require simulating permission failures
 	if err := os.MkdirAll(snipPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create .snip directory: %w", err)
 	}
@@ -38,6 +39,7 @@ func loadConfigFromDir(homeDir string) (*Config, error) {
 	if os.IsNotExist(err) {
 		return createDefaultConfig(configPath, snipPath)
 	} else if err != nil {
+		// Note: Stat errors other than NotExist are not tested - extremely rare
 		return nil, fmt.Errorf("failed to check config file: %w", err)
 	}
 
@@ -50,11 +52,13 @@ func createDefaultConfig(configPath, snipPath string) (*Config, error) {
 		StoragePath: filepath.Join(snipPath, "snippets.json"),
 	}
 
+	// Note: Marshal error not tested - won't fail with our simple struct
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal config: %w", err)
 	}
 
+	// Note: WriteFile error not tested - would require disk full or permission issues
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
 		return nil, fmt.Errorf("failed to write config file: %w", err)
 	}

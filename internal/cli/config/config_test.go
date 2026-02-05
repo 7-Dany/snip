@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+// NOTE: Some error paths are not covered by these tests:
+// - os.MkdirAll failure (extremely rare - would require permission issues)
+// - os.WriteFile failure during createDefaultConfig (extremely rare)
+// - os.Stat failure with non-NotExist error (extremely rare)
+// These paths exist for defensive programming but are nearly impossible to trigger
+// in real-world usage and would require complex mocking to test.
+
 func TestLoadConfig(t *testing.T) {
 	t.Run("creates config with defaults when none exists", func(t *testing.T) {
 		tempHome := t.TempDir()
@@ -80,7 +87,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("returns error for invalid JSON", func(t *testing.T) {
+	t.Run("returns error for invalid JSON in existing config", func(t *testing.T) {
 		tempHome := t.TempDir()
 
 		snipPath := filepath.Join(tempHome, ".snip")
@@ -120,6 +127,26 @@ func TestLoadConfig(t *testing.T) {
 	})
 }
 
+func TestLoadConfigFunction(t *testing.T) {
+	t.Run("successfully loads config from home directory", func(t *testing.T) {
+		// This test calls the actual LoadConfig() function
+		// It creates config in the real home directory
+		config, err := LoadConfig()
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if config == nil {
+			t.Fatal("expected config to be returned")
+		}
+
+		if config.StoragePath == "" {
+			t.Error("expected storage path to be set")
+		}
+	})
+}
+
 func TestCreateDefaultConfig(t *testing.T) {
 	t.Run("creates valid config file", func(t *testing.T) {
 		tempDir := t.TempDir()
@@ -139,6 +166,20 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
 			t.Error("config file was not created")
+		}
+	})
+
+	t.Run("config contains valid JSON structure", func(t *testing.T) {
+		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, "config.json")
+		snipPath := filepath.Join(tempDir, ".snip")
+
+		createDefaultConfig(configPath, snipPath)
+
+		data, _ := os.ReadFile(configPath)
+		var config Config
+		if err := json.Unmarshal(data, &config); err != nil {
+			t.Errorf("config file should contain valid JSON: %v", err)
 		}
 	})
 }
@@ -181,6 +222,18 @@ func TestLoadExistingConfig(t *testing.T) {
 
 		if err == nil {
 			t.Fatal("expected error for invalid JSON")
+		}
+	})
+
+	t.Run("returns error for empty file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		configPath := filepath.Join(tempDir, "config.json")
+		os.WriteFile(configPath, []byte(""), 0644)
+
+		_, err := loadExistingConfig(configPath)
+
+		if err == nil {
+			t.Fatal("expected error for empty file")
 		}
 	})
 }
